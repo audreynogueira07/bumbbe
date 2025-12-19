@@ -1,0 +1,276 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard IA | Bumbbe Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root { 
+            --bg: #F4F5FA; 
+            --brand-purple: #8c52ff;
+        }
+        body { font-family: 'Poppins', sans-serif; background: var(--bg); color: #2e2e2e; }
+        .main-panel { margin-left: 280px; min-height: 100vh; padding: 2rem; }
+        @media (max-width: 991px) { .main-panel { margin-left: 0; } }
+        
+        /* Stats Cards */
+        .stat-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #eceef1;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            transition: 0.2s;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .stat-icon {
+            width: 48px; height: 48px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+            margin-right: 1rem;
+        }
+        
+        /* Bot Card */
+        .bot-card { 
+            border: 1px solid #eceef1; 
+            border-radius: 16px; 
+            transition: 0.3s;
+            background: #fff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .bot-card:hover { 
+            border-color: var(--brand-purple);
+            box-shadow: 0 8px 24px rgba(140, 82, 255, 0.1); 
+            transform: translateY(-5px);
+        }
+        .bot-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+            padding: 1.25rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .bot-body { padding: 1.25rem; flex-grow: 1; }
+        .bot-footer {
+            padding: 1rem 1.25rem;
+            background: #fcfcfc;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        .bg-gradient-purple { background: linear-gradient(45deg, #8c52ff, #a06eff); color: white; }
+    </style>
+</head>
+<body>
+
+    {% include 'fillow/elements/sidebar.html' %}
+
+    <div class="main-panel">
+        
+        <div class="d-flex justify-content-between align-items-end mb-5">
+            <div>
+                <h6 class="text-muted text-uppercase fw-bold small mb-1">Módulo Inteligência Artificial</h6>
+                <h3 class="fw-bold m-0">Dashboard Chatbot</h3>
+            </div>
+            {% if can_create %}
+            <a href="{% url 'chatbot:create' %}" class="btn btn-primary btn-lg shadow-sm" style="background-color: var(--brand-purple); border: none;">
+                <i class="fas fa-plus-circle me-2"></i>Criar Novo Bot
+            </a>
+            {% else %}
+            <button class="btn btn-secondary" disabled title="Limite do plano atingido">
+                <i class="fas fa-lock me-2"></i>Limite Atingido
+            </button>
+            {% endif %}
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0" role="alert">
+                    <i class="fas fa-info-circle me-2"></i> {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="row g-4 mb-5">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary-subtle text-primary">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div>
+                        <h3 class="fw-bold mb-0">{{ bots.count }}</h3>
+                        <small class="text-muted">Chatbots Criados</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-success-subtle text-success">
+                        <i class="fas fa-toggle-on"></i>
+                    </div>
+                    <div>
+                        <h3 class="fw-bold mb-0">
+                            {% with active_count=0 %}
+                                {% for b in bots %}{% if b.active %}{% with active_count=active_count|add:1 %}{% endwith %}{% endif %}{% endfor %}
+                                {{ active_count }} 
+                            {% endwith %}
+                        </h3>
+                        <small class="text-muted">Assistentes Ativos</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning-subtle text-warning">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <div>
+                        <h3 class="fw-bold mb-0">
+                            {% if request.user.chatbot_subscription and request.user.chatbot_subscription.plan %}
+                                {{ request.user.chatbot_subscription.plan.max_chatbots }}
+                            {% else %}
+                                0
+                            {% endif %}
+                        </h3>
+                        <small class="text-muted">
+                            Limite do Plano 
+                            <span class="badge bg-light text-dark border ms-1">
+                                {{ request.user.chatbot_subscription.plan.name|default:"Sem Plano" }}
+                            </span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h5 class="fw-bold mb-3"><i class="fas fa-layer-group me-2 text-primary"></i>Seus Assistentes</h5>
+        <div class="row g-4">
+            {% for bot in bots %}
+            <div class="col-lg-6 col-xl-4">
+                <div class="bot-card h-100">
+                    <div class="bot-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white border rounded-circle p-2 shadow-sm me-3">
+                                {% if bot.ai_provider == 'openai' %}
+                                    <i class="fas fa-robot text-success fa-lg"></i>
+                                {% else %}
+                                    <i class="fas fa-brain text-primary fa-lg"></i>
+                                {% endif %}
+                            </div>
+                            <div style="overflow: hidden;">
+                                <h6 class="fw-bold mb-0 text-truncate" title="{{ bot.name }}">{{ bot.name }}</h6>
+                                <small class="text-muted">{{ bot.model_name }}</small>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" {% if bot.active %}checked{% endif %} disabled>
+                        </div>
+                    </div>
+
+                    <div class="bot-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-light text-dark border px-3 py-2 rounded-pill text-truncate w-100 text-start">
+                                <i class="fab fa-whatsapp text-success me-2"></i> 
+                                {% if bot.instance %}
+                                    {{ bot.instance.name }}
+                                {% else %}
+                                    <span class="text-muted fst-italic">Desconectado</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <div class="mb-3 d-flex gap-1 flex-wrap">
+                            {% if bot.trigger_on_groups %}
+                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle" title="Responde em Grupos"><i class="fas fa-users"></i> Grupos</span>
+                            {% endif %}
+                            {% if bot.simulate_typing %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" title="Simula Digitação"><i class="fas fa-keyboard"></i> Digitação</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span class="text-muted">Conversas (Mês)</span>
+                                <span class="fw-bold">{{ bot.conversations_count }}</span>
+                            </div>
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: 10%"></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span class="text-muted">Tokens IA</span>
+                                {% if bot.token_usage_type == 'infinity' %}
+                                    <span class="fw-bold text-primary"><i class="fas fa-infinity"></i></span>
+                                {% else %}
+                                    <span class="fw-bold">{{ bot.current_tokens_used }} / {{ bot.token_limit }}</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if bot.token_usage_type != 'infinity' and bot.token_limit > 0 %}
+                                <div class="progress" style="height: 4px;">
+                                    <div class="progress-bar bg-gradient-purple" role="progressbar" 
+                                         style="width: {% widthratio bot.current_tokens_used bot.token_limit 100 %}%"></div>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <span class="badge bg-secondary-subtle text-secondary border">
+                                <i class="fas fa-file-alt me-1"></i> {{ bot.medias.count }} Arquivos
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="bot-footer">
+                        <div class="small">
+                            {% if bot.active %}
+                                <span class="status-dot bg-success"></span><span class="text-success fw-bold">Online</span>
+                            {% else %}
+                                <span class="status-dot bg-danger"></span><span class="text-muted">Pausado</span>
+                            {% endif %}
+                        </div>
+                        <a href="{% url 'chatbot:edit' bot.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                            Gerenciar <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 py-5">
+                <div class="text-center p-5 bg-white rounded-4 border border-dashed">
+                    <div class="mb-3 opacity-25">
+                        <i class="fas fa-robot fa-4x"></i>
+                    </div>
+                    <h4 class="fw-bold">Nenhum chatbot ativo</h4>
+                    <p class="text-muted mb-4">Crie sua primeira inteligência artificial e conecte ao WhatsApp.</p>
+                    {% if can_create %}
+                    <a href="{% url 'chatbot:create' %}" class="btn btn-primary px-4 rounded-pill">
+                        Começar Agora
+                    </a>
+                    {% else %}
+                    <button class="btn btn-secondary px-4 rounded-pill" disabled>Limite Atingido</button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

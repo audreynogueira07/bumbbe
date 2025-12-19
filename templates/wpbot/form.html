@@ -1,0 +1,159 @@
+<!-- templates/wpbot/form.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} | Bumbbe Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --bg: #F4F5FA; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); }
+        .main-panel { margin-left: 280px; min-height: 100vh; padding: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @media (max-width: 991px) { .main-panel { margin-left: 0; } }
+        .form-card { max-width: 800px; width: 100%; }
+        .section-title { font-size: 0.75rem; font-weight: 700; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem; margin-top: 1.5rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+
+    {% include 'fillow/elements/sidebar.html' %}
+
+    <div class="main-panel">
+        
+        <div class="card form-card shadow border-0">
+            <div class="card-body p-4 p-md-5">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold m-0"><i class="fab fa-wordpress text-primary me-2"></i>Novo Bot WordPress</h4>
+                    <a href="{% url 'wpbot:list' %}" class="btn-close"></a>
+                </div>
+                
+                <form method="post" class="auto-style-form">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <!-- SEÇÃO 1: IDENTIFICAÇÃO -->
+                    <div class="section-title">1. Identificação Básica</div>
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold small">Nome do Bot</label>
+                            {{ form.name }}
+                            <div class="form-text">Nome interno para você identificar este bot no painel.</div>
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO 2: IDENTIDADE DA EMPRESA -->
+                    <div class="section-title">2. Identidade da Empresa</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Nome da Empresa</label>
+                            {{ form.company_name }}
+                            <div class="form-text">Como o bot se apresentará aos visitantes do site.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Website</label>
+                            {{ form.company_website }}
+                            <div class="form-text">Link principal do site.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Resumo da Empresa</label>
+                            {{ form.company_summary }}
+                            <div class="form-text">Descreva produtos, serviços e missão. A IA usará isso como base de conhecimento principal.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Horário de Atendimento</label>
+                            {{ form.business_hours }}
+                            <div class="form-text">Texto livre. Ex: "Seg-Sex das 9h às 18h".</div>
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO 3: INTELIGÊNCIA -->
+                    <div class="section-title">3. Configuração de IA</div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Provedor</label>
+                            {{ form.ai_provider }}
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold small">Modelo</label>
+                            {{ form.model_name }}
+                            <div class="form-text">Ex: <span class="font-monospace">gpt-3.5-turbo</span>, <span class="font-monospace">gemini-pro</span>.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">API Key</label>
+                            {{ form.api_key }}
+                            <div class="form-text">Chave de API do provedor (OpenAI ou Google).</div>
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO 4: COMPORTAMENTO -->
+                    <div class="section-title">4. Comportamento & Memória</div>
+                    <div class="bg-light p-3 rounded border">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Tom da Conversa</label>
+                                {{ form.conversation_tone }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Limite Histórico</label>
+                                {{ form.history_limit }}
+                                <div class="form-text">Quantas mensagens lembrar.</div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    {{ form.use_history }}
+                                    <label class="form-check-label fw-bold" for="{{ form.use_history.id_for_label }}">Ativar Memória</label>
+                                    <div class="form-text">Se ativado, o bot manterá o contexto da conversa.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- SEÇÃO 5: INSTRUÇÕES -->
+                    <div class="section-title">5. Instruções do Sistema</div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Contexto (Prompt)</label>
+                        {{ form.context }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Habilidades</label>
+                        {{ form.skills }}
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="form-check form-switch">
+                            {{ form.active }}
+                            <label class="form-check-label fw-bold text-success" for="{{ form.active.id_for_label }}">Ativar Bot</label>
+                        </div>
+                        <div>
+                            <a href="{% url 'wpbot:list' %}" class="btn btn-light me-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary px-4 fw-bold"><i class="fas fa-save me-2"></i>Salvar Bot</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('.auto-style-form input:not([type="checkbox"]), .auto-style-form select, .auto-style-form textarea');
+            inputs.forEach(input => {
+                if (input.tagName === 'SELECT') input.classList.add('form-select');
+                else input.classList.add('form-control');
+            });
+            const chks = document.querySelectorAll('.auto-style-form input[type="checkbox"]');
+            chks.forEach(chk => chk.classList.add('form-check-input'));
+        });
+    </script>
+</body>
+</html>

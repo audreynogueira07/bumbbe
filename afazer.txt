@@ -1,0 +1,13 @@
+por log de erro salvo em banco em tudo
+plano em tudo
+receivers para atualizar um plano maior
+App plano e pagamentos
+nao exibir os erros direto no chatbot
+chat do site nao esta capturando o lead certinho apos o preenchimento do form
+O chat do site nem sempre ta ficando no lugar certo
+na api testar sessoes q nao existem
+no chatbot colocar a opcao de mandar mensagem apos tempo obsoleto
+chatbot sempre verificar as mensagens anteriores
+otimizar o chat para parar de enviar tanto contexto para economizar token (deixar padrao gemini)
+enviar conversa para o vendedor ao final / /ou suporte
+chatbot IA salvar tipo de negócio

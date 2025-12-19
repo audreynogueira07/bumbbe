@@ -1,0 +1,14 @@
+{% extends 'flowbot/base.html' %}
+{% block title %}Excluir Arquivo{% endblock %}
+{% block subtitle %}{{ bot.name }}{% endblock %}
+{% block content %}
+  <div class="fb-card fb-card-pad fb-max-700">
+    <h2 class="fb-h2">Excluir arquivo</h2>
+    <p>Excluir <strong>{{ media }}</strong>?</p>
+    <form method="post">
+      {% csrf_token %}
+      <button class="fb-btn fb-btn-danger" type="submit">Sim, excluir</button>
+      <a class="fb-btn fb-btn-secondary" href="{% url 'flowbot:media' bot.id %}">Cancelar</a>
+    </form>
+  </div>
+{% endblock %}

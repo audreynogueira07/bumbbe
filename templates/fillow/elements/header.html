@@ -1,0 +1,53 @@
+{% load static %}
+<header class="bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between sticky-top" style="height: 70px;">
+    
+    <!-- Left: Mobile Toggle & Breadcrumb -->
+    <div class="d-flex align-items-center">
+        <!-- Botão Mobile -->
+        <button class="btn btn-light d-lg-none me-3" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <nav aria-label="breadcrumb" class="d-none d-md-block">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="#" class="text-decoration-none text-muted small">Bumbbe Chat</a></li>
+                <li class="breadcrumb-item active small" aria-current="page">Dashboard</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Right: Actions & User -->
+    <div class="d-flex align-items-center gap-3">
+        
+        <!-- Status do Sistema (Badge) -->
+        <div class="d-none d-md-block">
+            <span class="badge bg-light text-dark border fw-normal px-3 py-2 rounded-pill">
+                <i class="fas fa-circle text-success me-1" style="font-size: 6px;"></i> Sistema Online
+            </span>
+        </div>
+
+        <div class="vr h-50 mx-2 text-muted"></div>
+
+        <!-- Notifications (Simulado) -->
+        <div class="dropdown">
+            <a href="#" class="text-secondary position-relative me-2" data-bs-toggle="dropdown">
+                <i class="far fa-bell fs-5"></i>
+                <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-0" style="width: 300px;">
+                <li class="p-3 border-bottom fw-bold text-muted bg-light rounded-top" style="font-size: 0.8rem;">NOTIFICAÇÕES</li>
+                <li><a class="dropdown-item p-3 border-bottom" href="#">
+                    <small class="d-block text-muted mb-1">Agora</small>
+                    <div>Nova instância criada com sucesso.</div>
+                </a></li>
+                <li><a class="dropdown-item p-3 text-center text-primary small fw-bold" href="#">Ver todas</a></li>
+            </ul>
+        </div>
+        
+        <!-- Settings Link -->
+        <a href="#" class="text-secondary">
+            <i class="fas fa-cog fs-5"></i>
+        </a>
+
+    </div>
+</header>

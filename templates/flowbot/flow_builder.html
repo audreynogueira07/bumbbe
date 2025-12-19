@@ -1,0 +1,230 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de Fluxo | {{ chatbot.name }}</title>
+    
+    <!-- Ícones e Fontes -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- CSS do Flow Builder (Unificado) -->
+    <link rel="stylesheet" href="{% static 'css/flow_builder.css' %}">
+</head>
+<body>
+
+    <!-- Topbar -->
+    <div class="fb-topbar">
+        <div class="fb-brand">
+            <i class="fas fa-robot" style="color:var(--primary); margin-right:8px"></i>
+            {{ chatbot.name }} <span class="fb-sub">Fluxo de Conversa</span>
+        </div>
+        <div class="fb-topbar-right">
+            <a href="{% url 'chatbot:edit' chatbot.id %}" class="fb-btn fb-btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+            <button id="btnSave" class="fb-btn fb-btn-primary">
+                <i class="fas fa-save"></i> Salvar Fluxo
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="fb-content">
+        <div class="fb-builder">
+            
+            <!-- 1. Paleta de Nós (Esquerda) -->
+            <div class="fb-palette">
+                <div class="fb-palette-head">
+                    <span class="fb-h3">Ferramentas</span>
+                </div>
+                <div class="fb-palette-list" id="paletteList">
+                    <!-- Gerado via JS -->
+                </div>
+                <div class="fb-palette-foot">
+                    <small class="fb-muted">Arraste os blocos para o canvas</small>
+                </div>
+            </div>
+
+            <!-- 2. Canvas (Centro) -->
+            <div class="fb-canvas-wrap">
+                <div class="fb-canvas-toolbar">
+                    <div class="fb-toolbar-left">
+                        <button class="fb-icbtn" id="btnZoomIn" title="Zoom In"><i class="fas fa-plus"></i></button>
+                        <button class="fb-icbtn" id="btnZoomOut" title="Zoom Out"><i class="fas fa-minus"></i></button>
+                        <button class="fb-icbtn" id="btnCenter" title="Centralizar"><i class="fas fa-compress-arrows-alt"></i></button>
+                    </div>
+                    <div class="fb-toolbar-right">
+                        <span class="fb-pill ok"><i class="fas fa-check-circle"></i> Auto-save off</span>
+                    </div>
+                </div>
+
+                <!-- Área de Desenho -->
+                <div class="fb-canvas" id="canvas">
+                    <div class="fb-nodes-layer" id="nodesLayer">
+                        <!-- Nós renderizados aqui -->
+                    </div>
+                    <svg class="fb-wires" id="wires">
+                        <!-- Conexões SVG aqui -->
+                    </svg>
+                </div>
+
+                <!-- Simulador de Chat (Rodapé do Canvas) -->
+                <div class="fb-chat-sim">
+                    <div class="fb-chat-head">
+                        <span class="fb-h3"><i class="far fa-comments"></i> Simulador</span>
+                        <div style="display:flex; gap:6px">
+                            <button id="btnStartChat" class="fb-btn fb-btn-secondary" style="padding:4px 8px; font-size:0.8rem">Iniciar</button>
+                            <button id="btnResetChat" class="fb-icbtn" style="width:28px;height:28px" title="Limpar"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </div>
+                    <div class="fb-chat-log" id="chatLog">
+                        <div class="fb-muted" style="text-align:center; margin-top:20px; font-size:0.85rem">
+                            Clique em "Iniciar" para testar o fluxo.
+                        </div>
+                    </div>
+                    <div class="fb-chat-input">
+                        <input type="text" id="chatText" placeholder="Digite uma mensagem...">
+                        <button id="btnSendChat" class="fb-icbtn"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Propriedades (Direita) -->
+            <div class="fb-props">
+                <div class="fb-props-head">
+                    <div class="fb-h3" id="selectedLabel">Propriedades</div>
+                </div>
+                <div class="fb-props-body" id="propsBody">
+                    <div class="fb-muted">Selecione um nó para editar.</div>
+                </div>
+                <div class="fb-props-foot">
+                    <button id="btnDeleteNode" class="fb-btn fb-btn-danger" style="width:100%" disabled>
+                        <i class="fas fa-trash"></i> Excluir Nó
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Configuração Global (Crucial para o JS funcionar) -->
+    <script>
+        window.FLOWBOT = {
+            // URLs para API (Ajuste conforme suas views Django)
+            urls: {
+                getFlow: "{% url 'chatbot:flow_get' chatbot.id %}",   // Você precisará criar essas rotas
+                saveFlow: "{% url 'chatbot:flow_save' chatbot.id %}",
+                mediaList: "{% url 'chatbot:api_media_list' chatbot.id %}", 
+                chatStart: "{% url 'chatbot:sim_start' chatbot.id %}",
+                chatSend: "{% url 'chatbot:sim_send' chatbot.id %}",
+                chatReset: "{% url 'chatbot:sim_reset' chatbot.id %}"
+            },
+            
+            // Definição dos Blocos Disponíveis
+            nodeLibrary: [
+                {
+                    type: "start",
+                    label: "Início (Start)",
+                    help: "Ponto de partida do fluxo.",
+                    inputs: [],
+                    outputs: ["out"],
+                    fields: [] 
+                },
+                {
+                    type: "text",
+                    label: "Enviar Mensagem",
+                    help: "Envia um texto simples.",
+                    inputs: ["in"],
+                    outputs: ["out"],
+                    fields: [
+                        {key: "text", label: "Mensagem", kind: "textarea", placeholder: "Olá! Tudo bem?"}
+                    ]
+                },
+                {
+                    type: "menu",
+                    label: "Menu de Opções",
+                    help: "Botões ou lista numérica.",
+                    inputs: ["in"],
+                    outputs: ["opt_1", "opt_2", "opt_3", "opt_4"], // Até 4 saídas dinâmicas
+                    fields: [
+                        {key: "prompt", label: "Texto da Pergunta", kind: "textarea", placeholder: "Escolha uma opção:"},
+                        {key: "options", label: "Opções (uma por linha)", kind: "options_multiline", help: "Máximo 4 opções."}
+                    ]
+                },
+                {
+                    type: "media",
+                    label: "Enviar Mídia",
+                    help: "Foto, Vídeo ou Documento.",
+                    inputs: ["in"],
+                    outputs: ["out"],
+                    fields: [
+                        {key: "media_id", label: "Selecione o Arquivo", kind: "media_select"}
+                    ]
+                },
+                {
+                    type: "ask_input",
+                    label: "Pedir Dado (Input)",
+                    help: "Salva a resposta do usuário.",
+                    inputs: ["in"],
+                    outputs: ["out"],
+                    fields: [
+                        {key: "prompt", label: "Pergunta", kind: "textarea", placeholder: "Qual seu nome?"},
+                        {key: "var", label: "Nome da Variável", kind: "text", placeholder: "nome_cliente"}
+                    ]
+                },
+                {
+                    type: "condition",
+                    label: "Condição (If/Else)",
+                    help: "Desvia o fluxo baseada em variável.",
+                    inputs: ["in"],
+                    outputs: ["yes", "no"],
+                    fields: [
+                        {key: "source", label: "Variável", kind: "text", placeholder: "input"},
+                        {key: "kind", label: "Comparação", kind: "select", choices: ["contains", "equals", "starts_with"]},
+                        {key: "value", label: "Valor", kind: "text", placeholder: "sim"}
+                    ]
+                },
+                {
+                    type: "capture_contact",
+                    label: "Capturar Lead",
+                    help: "Salva Nome/Whats no banco.",
+                    inputs: ["in"],
+                    outputs: ["out"],
+                    fields: [
+                        {key: "mode", label: "O que capturar?", kind: "select", choices: ["name", "whatsapp", "both"]},
+                        {key: "ask_name", label: "Pergunta Nome", kind: "text", placeholder: "Qual seu nome?"},
+                        {key: "ask_whatsapp", label: "Pergunta Whats", kind: "text", placeholder: "Qual seu zap?"}
+                    ]
+                },
+                {
+                    type: "set_var",
+                    label: "Definir Variável",
+                    help: "Seta valor interno.",
+                    inputs: ["in"],
+                    outputs: ["out"],
+                    fields: [
+                        {key: "key", label: "Nome", kind: "text"},
+                        {key: "value", label: "Valor", kind: "text"}
+                    ]
+                },
+                {
+                    type: "end",
+                    label: "Fim (Encerrar)",
+                    help: "Finaliza o atendimento.",
+                    inputs: ["in"],
+                    outputs: [],
+                    fields: [
+                        {key: "text", label: "Mensagem de Tchau", kind: "textarea"}
+                    ]
+                }
+            ]
+        };
+    </script>
+
+    <!-- Lógica do Builder -->
+    <script src="{% static 'js/flow_builder.js' %}"></script>
+</body>
+</html>

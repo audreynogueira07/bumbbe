@@ -1,0 +1,386 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo Chatbot | Bumbbe Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --bg: #F4F5FA; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); }
+        .main-panel { margin-left: 280px; min-height: 100vh; padding: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @media (max-width: 991px) { .main-panel { margin-left: 0; } }
+        .form-card { max-width: 800px; width: 100%; }
+        .section-title { font-size: 0.75rem; font-weight: 700; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem; margin-top: 1.5rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    <!-- =============================================================
+         AJUDA DE PREENCHIMENTO
+         Estes textos explicam como cada campo afeta o ChatbotEngine.
+         Base: chatbot.engine.ChatbotEngine (_build_dynamic_prompt/process_message).
+         ============================================================= -->
+
+    {% include 'fillow/elements/sidebar.html' %}
+
+    <div class="main-panel">
+        
+        {% if messages %}
+            <div class="w-100" style="max-width: 800px;">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="card form-card shadow border-0">
+            <div class="card-body p-4 p-md-5">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold m-0"><i class="fas fa-robot text-primary me-2"></i>Criar Novo Assistente</h4>
+                    <a href="{% url 'chatbot:list' %}" class="btn-close"></a>
+                </div>
+                
+                <form method="post" class="auto-style-form">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <!-- SEÇÃO 1: CONEXÃO -->
+                    <div class="section-title">1. Conexão & Identificação</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Instância do WhatsApp</label>
+                            {{ form.instance }}
+                            <div class="form-text">Escolha a instância do WhatsApp (o número) que este bot vai usar para receber/enviar mensagens.</div>
+                            {% if form.instance.errors %}<div class="text-danger small">{{ form.instance.errors }}</div>{% endif %}
+                            <div class="form-text">Qual número este bot vai controlar?</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Nome Interno</label>
+                            {{ form.name }}
+                            <div class="form-text">Nome do assistente (persona). Vai para o prompt como: "Você é &lt;nome&gt;".</div>
+                            {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO 2: IDENTIDADE DA EMPRESA -->
+                    <div class="section-title">2. Identidade da Empresa</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Nome da Empresa</label>
+                            {{ form.company_name }}
+                            <div class="form-text">Nome da empresa que o assistente representa no WhatsApp.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Website</label>
+                            {{ form.company_website }}
+                            <div class="form-text">Opcional. Ajuda a IA a citar links oficiais e informações públicas corretas.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Setor de Atuação</label>
+                            {{ form.sector }}
+                            <div class="form-text">Área/ramo (para organização). Ex.: Saúde, Educação, Varejo, Tecnologia.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Segmento</label>
+                            {{ form.segment }}
+                            <div class="form-text">Entra no prompt como "Segmento" e ajuda a IA a adaptar o atendimento.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">Resumo da Empresa</label>
+                            {{ form.company_summary }}
+                            <div class="form-text">Vai para o prompt como "INFORMAÇÕES DA EMPRESA". Descreva produtos/serviços, diferenciais e o que você quer que o bot sempre lembre.</div>
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO 3: INTELIGÊNCIA -->
+                    <div class="section-title">3. Cérebro da IA</div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Provedor</label>
+                            {{ form.ai_provider }}
+                            <div class="form-text">O engine chamará este provedor para gerar a resposta.</div>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold small">Modelo (Ex: gpt-4o, gemini-pro)</label>
+                            {{ form.model_name }}
+                            <div class="form-text">Nome do modelo. Ex: <span class="font-monospace">gpt-4o</span> / <span class="font-monospace">gpt-4.1-mini</span> / <span class="font-monospace">gemini-pro</span>.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small">API Key</label>
+                            {{ form.api_key }}
+                            <div class="form-text">Cole a chave do provedor selecionado. Sem chave válida, a IA falha e o bot não responde.</div>
+                        </div>
+                        
+                        <!-- NOVA SEÇÃO: MEMÓRIA (Inserida aqui para consistência) -->
+                        <div class="col-12 mt-3">
+                            <div class="bg-light p-3 rounded border">
+                                <h6 class="small fw-bold text-dark mb-2"><i class="fas fa-history me-1"></i> Memória & Continuidade</h6>
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            {{ form.use_history }}
+                                            <label class="form-check-label" for="{{ form.use_history.id_for_label }}">
+                                                Ativar Memória de Conversa
+                                            </label>
+                                            <div class="form-text">Se ativo, o engine carrega as últimas mensagens do contato e usa como contexto para manter continuidade.</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold mb-1">Limite de Mensagens</label>
+                                        {{ form.history_limit }}
+                                        <div class="form-text">Quantidade de mensagens anteriores usadas no contexto. Mais histórico = mais coerência (e maior custo).</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO 4: COMPORTAMENTO -->
+                    <div class="section-title">4. Comportamento & Filtros</div>
+                    <div class="bg-light p-3 rounded border">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Tom da Conversa</label>
+                                {{ form.conversation_tone }}
+                                <div class="form-text">Ajusta as instruções de tom (formal/casual) dentro do prompt.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Horário de Atendimento</label>
+                                {{ form.business_hours }}
+                                <div class="form-text">A IA verá estes horários e pode avisar quando o atendimento estiver fora do expediente.</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <h6 class="small fw-bold text-dark mt-3 mb-2">Gatilhos</h6>
+                                <div class="form-check form-switch mb-2">
+                                    {{ form.trigger_on_groups }}
+                                    <label class="form-check-label" for="{{ form.trigger_on_groups.id_for_label }}">Responder em Grupos</label>
+                                    <div class="form-text">Se desligado, o engine ignora mensagens de grupos.</div>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    {{ form.trigger_on_unknown }}
+                                    <label class="form-check-label" for="{{ form.trigger_on_unknown.id_for_label }}">Responder Desconhecidos</label>
+                                    <div class="form-text">Se ligado, permite responder números sem histórico (novos leads). Use com cuidado para evitar spam.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="small fw-bold text-dark mt-3 mb-2">Capacidades</h6>
+                                <div class="form-check form-switch mb-2">
+                                    {{ form.allow_audio_response }}
+                                    <label class="form-check-label" for="{{ form.allow_audio_response.id_for_label }}">Enviar Áudios</label>
+                                    <div class="form-text">Permite que o bot envie áudios (quando o envio de voz estiver habilitado na sua integração).</div>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    {{ form.allow_media_response }}
+                                    <label class="form-check-label" for="{{ form.allow_media_response.id_for_label }}">Enviar Arquivos/Imagens</label>
+                                    <div class="form-text">Permite que a IA envie arquivos cadastrados usando comando interno <span class="font-monospace">SEND_MEDIA_ID:&lt;ID&gt;</span>.</div>
+                                </div>
+                            </div>
+                            <div class="col-12 border-top pt-3 mt-2">
+                                <div class="row align-items-end g-2">
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch mb-2">
+                                            {{ form.simulate_typing }}
+                                            <label class="form-check-label fw-bold" for="{{ form.simulate_typing.id_for_label }}">Simular Digitação Humana</label>
+                                            <div class="form-text">Se ligado, o bot simula "digitando" antes de responder.</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="small text-muted mb-1">Mínimo (ms)</label>
+                                        {{ form.typing_time_min }}
+                                        <div class="form-text">Mínimo em milissegundos.</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="small text-muted mb-1">Máximo (ms)</label>
+                                        {{ form.typing_time_max }}
+                                        <div class="form-text">Máximo em milissegundos. Se min &gt; máx, o engine ajusta automaticamente.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO 5: INSTRUÇÕES AVANÇADAS -->
+                    <div class="section-title">5. Instruções Personalizadas</div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Contexto do Sistema (Prompt Inicial)</label>
+                        {{ form.context }}
+                        <div class="form-text">Vai para o prompt como "DADOS ESPECÍFICOS". Coloque informações objetivas que o bot deve usar para responder (endereços, preços, políticas, FAQ).</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Habilidades & Instruções</label>
+                        {{ form.skills }}
+                        <div class="form-text">Regras de atendimento e competências (como deve responder / o que deve perguntar / limitações).</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Instruções Extras (Manual)</label>
+                        {{ form.extra_instructions }}
+                        <div class="form-text">Instruções finais, curtas e diretas. Ex.: "Se pedirem humano, ofereça transferência".</div>
+                    </div>
+
+                    <!-- SEÇÃO 6: TRANSFERÊNCIAS -->
+                    <div class="section-title">6. Departamentos de Transferência</div>
+                    <div class="alert alert-light border small">
+                        Configure até 5 setores para transferir atendimentos humanos.
+                    </div>
+                    
+                    <!-- Transf 1 -->
+                    <div class="row g-2 align-items-center mb-2">
+                        <div class="col-auto">
+                            <div class="form-check form-switch pt-4">
+                                {{ form.transf_1_active }}
+                                <!-- Se ativado, este setor entra na lista de transferência que a IA pode oferecer. -->
+                            </div>
+                        </div>
+                        <div class="col">
+                            <label class="small fw-bold">Setor 1</label>
+                            {{ form.transf_1_label }}
+                            <div class="form-text">Nome do setor (ex.: Vendas, Suporte, Financeiro) que aparecerá na transferência.</div>
+                        </div>
+                        <div class="col">
+                            <label class="small fw-bold">WhatsApp 1</label>
+                            {{ form.transf_1_number }}
+                            <div class="form-text">Número WhatsApp do setor (com DDI/DDD). Ex: 5511999999999.</div>
+                        </div>
+                    </div>
+
+                    <!-- Transf 2 -->
+                    <div class="row g-2 align-items-center mb-2">
+                        <div class="col-auto">
+                            <div class="form-check form-switch pt-4">
+                                {{ form.transf_2_active }}
+                                <!-- Se ativado, este setor entra na lista de transferência que a IA pode oferecer. -->
+                            </div>
+                        </div>
+                        <div class="col">
+                            <label class="small fw-bold">Setor 2</label>
+                            {{ form.transf_2_label }}
+                            <div class="form-text">Nome do setor (ex.: Vendas, Suporte, Financeiro) que aparecerá na transferência.</div>
+                        </div>
+                        <div class="col">
+                            <label class="small fw-bold">WhatsApp 2</label>
+                            {{ form.transf_2_number }}
+                            <div class="form-text">Número WhatsApp do setor (com DDI/DDD). Ex: 5511999999999.</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Transf 3 -->
+                    <div class="row g-2 align-items-center mb-2">
+                        <div class="col-auto">
+                            <div class="form-check form-switch pt-4">
+                                {{ form.transf_3_active }}
+                                <!-- Se ativado, este setor entra na lista de transferência que a IA pode oferecer. -->
+                            </div>
+                        </div>
+                        <div class="col">
+                            <label class="small fw-bold">Setor 3</label>
+                            {{ form.transf_3_label }}
+                            <div class="form-text">Nome do setor (ex.: Vendas, Suporte, Financeiro) que aparecerá na transferência.</div>
+                        </div>
+                        <div class="col">
+                            <label class="small fw-bold">WhatsApp 3</label>
+                            {{ form.transf_3_number }}
+                            <div class="form-text">Número WhatsApp do setor (com DDI/DDD). Ex: 5511999999999.</div>
+                        </div>
+                    </div>
+
+                     <!-- Transf 4 -->
+                     <div class="row g-2 align-items-center mb-2">
+                        <div class="col-auto">
+                            <div class="form-check form-switch pt-4">
+                                {{ form.transf_4_active }}
+                                <!-- Se ativado, este setor entra na lista de transferência que a IA pode oferecer. -->
+                            </div>
+                        </div>
+                        <div class="col">
+                            <label class="small fw-bold">Setor 4</label>
+                            {{ form.transf_4_label }}
+                            <div class="form-text">Nome do setor (ex.: Vendas, Suporte, Financeiro) que aparecerá na transferência.</div>
+                        </div>
+                        <div class="col">
+                            <label class="small fw-bold">WhatsApp 4</label>
+                            {{ form.transf_4_number }}
+                            <div class="form-text">Número WhatsApp do setor (com DDI/DDD). Ex: 5511999999999.</div>
+                        </div>
+                    </div>
+
+                     <!-- Transf 5 -->
+                     <div class="row g-2 align-items-center mb-2">
+                        <div class="col-auto">
+                            <div class="form-check form-switch pt-4">
+                                {{ form.transf_5_active }}
+                                <!-- Se ativado, este setor entra na lista de transferência que a IA pode oferecer. -->
+                            </div>
+                        </div>
+                        <div class="col">
+                            <label class="small fw-bold">Setor 5</label>
+                            {{ form.transf_5_label }}
+                            <div class="form-text">Nome do setor (ex.: Vendas, Suporte, Financeiro) que aparecerá na transferência.</div>
+                        </div>
+                        <div class="col">
+                            <label class="small fw-bold">WhatsApp 5</label>
+                            {{ form.transf_5_number }}
+                            <div class="form-text">Número WhatsApp do setor (com DDI/DDD). Ex: 5511999999999.</div>
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO 7: LIMITES -->
+                    <div class="section-title">7. Controle de Custos</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Tipo de Limite</label>
+                            {{ form.token_usage_type }}
+                            <div class="form-text">Define como você limita o uso/custo do bot. O engine pode bloquear respostas ao atingir limites do plano.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Max Tokens (Total)</label>
+                            {{ form.token_limit }}
+                            <div class="form-text">Teto máximo de uso (conforme sua regra). Ao atingir, o bot pode parar de responder.</div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="form-check form-switch">
+                            {{ form.active }}
+                            <label class="form-check-label fw-bold text-success" for="{{ form.active.id_for_label }}">Ativar Imediatamente</label>
+                        </div>
+                        <div class="form-text">Se marcado, o bot já começa a responder (respeitando filtros e limites).</div>
+                        <div>
+                            <a href="{% url 'chatbot:list' %}" class="btn btn-light me-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary px-4 fw-bold"><i class="fas fa-check me-2"></i>Criar Chatbot</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('.auto-style-form input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]), .auto-style-form select, .auto-style-form textarea');
+            inputs.forEach(input => {
+                if (input.tagName === 'SELECT') {
+                    input.classList.add('form-select');
+                } else {
+                    input.classList.add('form-control');
+                }
+            });
+            
+            const checkboxes = document.querySelectorAll('.auto-style-form input[type="checkbox"]');
+            checkboxes.forEach(chk => chk.classList.add('form-check-input'));
+        });
+    </script>
+</body>
+</html>

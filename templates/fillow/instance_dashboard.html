@@ -1,0 +1,1116 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel {{ instance.name }} | Bumbbe Chat</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        :root { --primary: #25D366; --dark: #075E54; --bg: #F4F5FA; --chat-bg: #E5DDD5; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); }
+        .main-panel { margin-left: 280px; min-height: 100vh; padding: 2rem; transition: 0.3s; }
+        
+        /* Chat Styles */
+        .chat-container { background: var(--chat-bg); border-radius: 8px; height: 550px; display: flex; flex-direction: column; position: relative; }
+        .chat-scroll { flex: 1; overflow-y: auto; padding: 1.5rem; }
+        
+        .msg-row { display: flex; margin-bottom: 12px; width: 100%; }
+        .msg-row.out { justify-content: flex-end; }
+        .msg-row.in { justify-content: flex-start; }
+        
+        .msg-bubble { 
+            max-width: 75%; padding: 8px 12px; border-radius: 7.5px; 
+            font-size: 0.95rem; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+            word-wrap: break-word;
+        }
+        .msg-in .msg-bubble { background: #fff; border-top-left-radius: 0; color: #111; }
+        .msg-out .msg-bubble { background: #dcf8c6; border-top-right-radius: 0; color: #111; }
+        
+        .msg-meta { font-size: 0.65rem; color: #999; margin-top: 4px; text-align: right; display: block; }
+        .msg-type-badge { font-size: 0.7rem; font-weight: bold; text-transform: uppercase; opacity: 0.7; margin-bottom: 4px; display: block; }
+
+        .qr-container { min-height: 280px; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 12px; border: 2px dashed #e0e0e0; }
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; }
+        
+        /* Code Block Styles */
+        .code-block { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.85rem; overflow-x: auto; position: relative; }
+        .code-copy { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.1); border: none; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
+        .code-copy:hover { background: rgba(255,255,255,0.2); }
+        .nav-tabs .nav-link.active { border-color: #dee2e6 #dee2e6 #fff; color: var(--dark); font-weight: 600; }
+        .nav-tabs .nav-link { color: #666; }
+
+        @media (max-width: 991px) { .main-panel { margin-left: 0; } }
+    </style>
+</head>
+<body>
+
+    {% include 'fillow/elements/sidebar.html' %}
+
+    <div class="main-panel">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="fw-bold d-flex align-items-center gap-2">
+                    <i class="fab fa-whatsapp text-success"></i> {{ instance.name }}
+                </h3>
+                <small class="text-muted">
+                    Sessão: <span class="font-monospace">{{ instance.session_id }}</span>
+                </small>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="text-end d-none d-md-block">
+                    <small class="text-muted d-block">Status</small>
+                    <span id="status-badge" class="badge bg-secondary px-3 py-2">Carregando...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white pt-3 pb-0 border-bottom-0">
+                <ul class="nav nav-tabs px-2" id="mainTabs">
+                    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#connection"><i class="fas fa-qrcode me-2"></i>Conexão</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#messages"><i class="far fa-comments me-2"></i>Chat Ao Vivo</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tools"><i class="fas fa-tools me-2"></i>Testes</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#api-docs"><i class="fas fa-code me-2"></i>API & Integração</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#settings"><i class="fas fa-cogs me-2"></i>Configurações</a></li>
+                </ul>
+            </div>
+            
+            <div class="card-body p-4">
+                <div class="tab-content">
+                    
+                    <!-- CONEXÃO -->
+                    <div class="tab-pane fade show active" id="connection">
+                        <div class="row g-4">
+                            <div class="col-md-5 text-center">
+                                <div class="qr-container mb-3" id="qr-display">
+                                    <div id="qr-placeholder" class="text-muted">
+                                        <div class="spinner-border text-success mb-3"></div>
+                                        <p class="small">Verificando status...</p>
+                                    </div>
+                                    <img id="qr-image" src="" class="img-fluid d-none" style="max-height: 240px;">
+                                </div>
+                                <button id="btn-connect" class="btn btn-success w-100 mb-2 py-2" onclick="connectInstance()">
+                                    <i class="fas fa-sync-alt me-2"></i> Iniciar Sessão
+                                </button>
+                                <button id="btn-disconnect" class="btn btn-outline-danger w-100 py-2 d-none" onclick="disconnectInstance()">
+                                    <i class="fas fa-power-off me-2"></i> Desconectar
+                                </button>
+                            </div>
+                            
+                            <div class="col-md-7">
+                                <div class="bg-light p-4 rounded border">
+                                    <h5 class="fw-bold mb-3">Dados da Sessão</h5>
+                                    <div class="row mb-2">
+                                        <div class="col-4 text-muted">ID:</div>
+                                        <div class="col-8 font-monospace">{{ instance.session_id }}</div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-4 text-muted">Tel:</div>
+                                        <div class="col-8 fw-bold text-success" id="connected-phone">{{ instance.phone_connected|default:"--" }}</div>
+                                    </div>
+                                    <hr>
+                                    <label class="small fw-bold text-muted">API Token (Instância)</label>
+                                    <div class="input-group input-group-sm mb-2">
+                                        <input type="text" class="form-control" value="{{ instance.token }}" readonly id="apiTokenField">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="copyToken()"><i class="far fa-copy"></i></button>
+                                    </div>
+                                    <small class="text-muted d-block">
+                                        Use este token no header <code>Authorization: Bearer {{ instance.token }}</code> em todas as chamadas à API V1.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CHAT AO VIVO -->
+                    <div class="tab-pane fade" id="messages">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted">
+                                <i class="fas fa-circle text-success me-1" style="font-size:8px"></i> Atualização em tempo real (3s)
+                            </small>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="fetchMessages(true)">
+                                <i class="fas fa-sync"></i>
+                            </button>
+                        </div>
+                        <div class="chat-container border">
+                            <div class="chat-scroll" id="chat-list">
+                                <div class="text-center mt-5 text-muted">Carregando conversas...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TESTES -->
+                    <div class="tab-pane fade" id="tools">
+                        <div class="row">
+                            <div class="col-lg-7">
+                                <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+                                    <li class="nav-item">
+                                        <button class="nav-link active btn-sm" data-bs-toggle="pill" data-bs-target="#pills-text" type="button">
+                                            Texto
+                                        </button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button class="nav-link btn-sm" data-bs-toggle="pill" data-bs-target="#pills-media" type="button">
+                                            Mídia
+                                        </button>
+                                    </li>
+                                </ul>
+                                
+                                <div class="tab-content border rounded p-3 bg-light">
+                                    
+                                    <!-- TESTE TEXTO -->
+                                    <div class="tab-pane fade show active" id="pills-text">
+                                        <form id="testSendForm">
+                                            <div class="mb-3">
+                                                <label class="small fw-bold">Destino (número)</label>
+                                                <input type="text" name="to" class="form-control" placeholder="Ex: 5511999999999" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="small fw-bold">Mensagem</label>
+                                                <textarea name="message" class="form-control" rows="3" placeholder="Digite sua mensagem..." required></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary w-100" id="btnTestSend">
+                                                Enviar Texto
+                                            </button>
+                                        </form>
+                                    </div>
+                                    
+                                    <!-- TESTE MÍDIA -->
+                                    <div class="tab-pane fade" id="pills-media">
+                                        <form id="testMediaForm">
+                                            <div class="mb-3">
+                                                <label class="small fw-bold">Destino</label>
+                                                <input type="text" name="to" class="form-control" placeholder="Ex: 5511999999999" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="small fw-bold">Arquivo</label>
+                                                <input type="file" name="file" class="form-control" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="small fw-bold">Legenda (Opcional)</label>
+                                                <input type="text" name="caption" class="form-control" placeholder="Legenda...">
+                                            </div>
+                                            <button type="submit" class="btn btn-info text-white w-100" id="btnTestMedia">
+                                                Enviar Mídia
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                </div>
+                                <div id="testResult" class="mt-3"></div>
+                            </div>
+                            
+                            <div class="col-lg-5">
+                                <div class="card bg-light h-100 border">
+                                    <div class="card-body">
+                                        <h6 class="fw-bold mb-3">Diagnóstico</h6>
+                                        <ul class="list-group list-group-flush bg-transparent small">
+                                            <li class="list-group-item bg-transparent d-flex justify-content-between">
+                                                <span>Motor Node</span>
+                                                <span class="badge bg-success">Online</span>
+                                            </li>
+                                            <li class="list-group-item bg-transparent d-flex justify-content-between">
+                                                <span>Webhook</span>
+                                                <span class="badge {% if webhook_config.url %}bg-success{% else %}bg-secondary{% endif %}">
+                                                    {% if webhook_config.url %}Ativo{% else %}Inativo{% endif %}
+                                                </span>
+                                            </li>
+                                            <li class="list-group-item bg-transparent d-flex justify-content-between">
+                                                <span>Plano</span>
+                                                <span class="badge bg-secondary">
+                                                    {% if request.user.plan_end_date %}
+                                                        Até {{ request.user.plan_end_date|date:"d/m/Y" }}
+                                                    {% else %}
+                                                        Não configurado
+                                                    {% endif %}
+                                                </span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API & INTEGRAÇÃO -->
+                    <div class="tab-pane fade" id="api-docs">
+                        <div class="alert alert-info border-0 d-flex align-items-center mb-4">
+                            <i class="fas fa-info-circle fa-2x me-3"></i>
+                            <div>
+                                <strong>API V1 desta instância</strong><br>
+                                Aqui você encontra exemplos prontos e um console para testar chamadas em tempo real.
+                            </div>
+                        </div>
+
+                        <!-- SUB-ABAS DENTRO DA API -->
+                        <ul class="nav nav-pills mb-3" id="apiInnerTabs" role="tablist">
+                            <li class="nav-item">
+                                <button class="nav-link active btn-sm" id="api-guide-tab" data-bs-toggle="pill" data-bs-target="#api-guide" type="button">
+                                    Guia rápido
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link btn-sm" id="api-tester-tab" data-bs-toggle="pill" data-bs-target="#api-tester" type="button">
+                                    Testar endpoint (console)
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="apiInnerContent">
+                            
+                            <!-- GUIA RÁPIDO (já existia) -->
+                            <div class="tab-pane fade show active" id="api-guide" role="tabpanel">
+                                <!-- BASE URL + AUTH -->
+                                <div class="card mb-4">
+                                    <div class="card-body bg-light">
+                                        <div class="row g-3">
+                                            <div class="col-md-8">
+                                                <label class="form-label fw-bold small">URL Base da API</label>
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control font-monospace" value="{{ request.scheme }}://{{ request.get_host }}/api/v1" id="baseUrlField" readonly>
+                                                    <button class="btn btn-outline-secondary" type="button" onclick="copyToClip('baseUrlField')">
+                                                        <i class="far fa-copy"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold small">Header Authorization</label>
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control font-monospace" value="Bearer {{ instance.token }}" id="authHeaderField" readonly>
+                                                    <button class="btn btn-outline-secondary" type="button" onclick="copyToClip('authHeaderField')">
+                                                        <i class="far fa-copy"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted d-block mt-2">
+                                            Use sempre: <code>Authorization: Bearer {{ instance.token }}</code>
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <!-- ACCORDION PRINCIPAL -->
+                                <div class="accordion" id="apiAccordion">
+                                    
+                                    <!-- ENVIAR TEXTO BÁSICO -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#endText">
+                                                <span class="badge bg-primary me-2">POST</span> <strong>/messages/send</strong> — Enviar Texto
+                                            </button>
+                                        </h2>
+                                        <div id="endText" class="accordion-collapse collapse show" data-bs-parent="#apiAccordion">
+                                            <div class="accordion-body">
+                                                <p class="small text-muted">Endpoint: <code>/messages/send</code></p>
+                                                <div class="code-block">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>curl -X POST "{{ request.scheme }}://{{ request.get_host }}/api/v1/messages/send" \
+-H "Authorization: Bearer {{ instance.token }}" \
+-H "Content-Type: application/json" \
+-d '{
+  "to": "5511999998888",
+  "message": "Olá! Mensagem enviada via API."
+}'</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- ENVIAR MÍDIA -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#endMedia">
+                                                <span class="badge bg-primary me-2">POST</span> <strong>/messages/send-media</strong> — Enviar Mídia
+                                            </button>
+                                        </h2>
+                                        <div id="endMedia" class="accordion-collapse collapse" data-bs-parent="#apiAccordion">
+                                            <div class="accordion-body">
+                                                <p class="small text-muted">Endpoint: <code>/messages/send-media</code> (multipart/form-data)</p>
+                                                <div class="code-block">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>import requests
+
+url = "{{ request.scheme }}://{{ request.get_host }}/api/v1/messages/send-media"
+headers = {"Authorization": "Bearer {{ instance.token }}"}
+data = {"to": "5511999998888", "caption": "Legenda opcional"}
+files = {"file": open("arquivo.jpg", "rb")}
+
+response = requests.post(url, headers=headers, data=data, files=files)
+print(response.json())</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- ENVIAR ÁUDIO (PTT) -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#endVoice">
+                                                <span class="badge bg-primary me-2">POST</span> <strong>/messages/send-voice</strong> — Enviar Áudio (PTT)
+                                            </button>
+                                        </h2>
+                                        <div id="endVoice" class="accordion-collapse collapse" data-bs-parent="#apiAccordion">
+                                            <div class="accordion-body">
+                                                <p class="small text-muted">Endpoint: <code>/messages/send-voice</code> (multipart/form-data)</p>
+                                                <div class="code-block">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>import requests
+
+url = "{{ request.scheme }}://{{ request.get_host }}/api/v1/messages/send-voice"
+headers = {"Authorization": "Bearer {{ instance.token }}"}
+data = {"to": "5511999998888"}
+files = {"file": open("audio.ogg", "rb")}
+
+response = requests.post(url, headers=headers, data=data, files=files)
+print(response.json())</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- MENSAGENS INTERATIVAS -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#endInteractive">
+                                                <span class="badge bg-primary me-2">POST</span> <strong>/messages/&lt;tipo&gt;</strong> — Interativas
+                                            </button>
+                                        </h2>
+                                        <div id="endInteractive" class="accordion-collapse collapse" data-bs-parent="#apiAccordion">
+                                            <div class="accordion-body">
+                                                <p class="small text-muted">Tipos disponíveis: <code>location</code>, <code>poll</code>, <code>contact</code>, <code>reaction</code></p>
+
+                                                <p class="fw-bold small mb-1">Localização</p>
+                                                <div class="code-block mb-3">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>curl -X POST "{{ request.scheme }}://{{ request.get_host }}/api/v1/messages/location" \
+    -H "Authorization: Bearer {{ instance.token }}" \
+    -H "Content-Type: application/json" \
+    -d '{
+  "to": "5511999998888",
+  "latitude": -23.5505,
+  "longitude": -46.6333,
+  "name": "Praça da Sé",
+  "address": "São Paulo, SP"
+}'</pre>
+                                                </div>
+
+                                                <p class="fw-bold small mb-1">Enquete</p>
+                                                <div class="code-block mb-3">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>curl -X POST "{{ request.scheme }}://{{ request.get_host }}/api/v1/messages/poll" \
+-H "Authorization: Bearer {{ instance.token }}" \
+-H "Content-Type: application/json" \
+-d '{
+  "to": "5511999998888",
+  "name": "Qual sua cor favorita?",
+  "options": ["Azul", "Vermelho", "Verde"],
+  "selectableCount": 1
+}'</pre>
+                                                </div>
+
+                                                <p class="fw-bold small mb-1">Contato</p>
+                                                <div class="code-block mb-3">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>curl -X POST "{{ request.scheme }}://{{ request.get_host }}/api/v1/messages/contact" \
+-H "Authorization: Bearer {{ instance.token }}" \
+-H "Content-Type: application/json" \
+-d '{
+  "to": "5511999998888",
+  "displayName": "Fulano de Tal",
+  "vcard": "BEGIN:VCARD\\nVERSION:3.0\\nFN:Fulano de Tal\\nTEL;type=CELL;type=VOICE;waid=5511999991234:+55 11 99999‑1234\\nEND:VCARD"
+}'</pre>
+                                                </div>
+
+                                                <p class="fw-bold small mb-1">Reação</p>
+                                                <div class="code-block">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>curl -X POST "{{ request.scheme }}://{{ request.get_host }}/api/v1/messages/reaction" \
+-H "Authorization: Bearer {{ instance.token }}" \
+-H "Content-Type: application/json" \
+-d '{
+  "to": "5511999998888@s.whatsapp.net",
+  "emoji": "👍",
+  "key": {
+    "remoteJid": "5511999998888@s.whatsapp.net",
+    "id": "WAMID_DA_MENSAGEM",
+    "fromMe": false
+  }
+}'</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- GESTÃO DE MENSAGENS / CHATS -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#endMessageChat">
+                                                <span class="badge bg-secondary me-2">POST</span> <strong>/messages/&lt;acao&gt;</strong> &amp; <strong>/chats/&lt;acao&gt;</strong>
+                                            </button>
+                                        </h2>
+                                        <div id="endMessageChat" class="accordion-collapse collapse" data-bs-parent="#apiAccordion">
+                                            <div class="accordion-body">
+                                                <p class="small text-muted mb-1">
+                                                    <code>/messages/&lt;ação&gt;</code> — ações: <code>edit</code>, <code>delete</code>, <code>pin</code>, <code>unpin</code>, <code>star</code>
+                                                </p>
+                                                <p class="small text-muted">
+                                                    <code>/chats/&lt;ação&gt;</code> — ações: <code>archive</code>, <code>mute</code>, <code>clear</code>, <code>mark-read</code>
+                                                </p>
+
+                                                <p class="fw-bold small mb-1 mt-3">Exemplo: editar mensagem</p>
+                                                <div class="code-block mb-3">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>curl -X POST "{{ request.scheme }}://{{ request.get_host }}/api/v1/messages/edit" \
+-H "Authorization: Bearer {{ instance.token }}" \
+-H "Content-Type: application/json" \
+-d '{
+  "to": "5511999998888@s.whatsapp.net",
+  "key": {
+    "remoteJid": "5511999998888@s.whatsapp.net",
+    "id": "WAMID_DA_MENSAGEM",
+    "fromMe": true
+  },
+  "text": "Texto atualizado via API"
+}'</pre>
+                                                </div>
+
+                                                <p class="fw-bold small mb-1">Exemplo: arquivar chat</p>
+                                                <div class="code-block">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>curl -X POST "{{ request.scheme }}://{{ request.get_host }}/api/v1/chats/archive" \
+-H "Authorization: Bearer {{ instance.token }}" \
+-H "Content-Type: application/json" \
+-d '{
+  "to": "5511999998888@s.whatsapp.net",
+  "archive": true
+}'</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- GRUPOS -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#endGroups">
+                                                <span class="badge bg-success me-2">GET/POST/PUT</span> <strong>Grupos</strong>
+                                            </button>
+                                        </h2>
+                                        <div id="endGroups" class="accordion-collapse collapse" data-bs-parent="#apiAccordion">
+                                            <div class="accordion-body">
+                                                <p class="small text-muted mb-2">
+                                                    <code>GET /groups</code> — lista grupos<br>
+                                                    <code>POST /groups/create</code> — cria grupo<br>
+                                                    <code>POST /groups/join</code> — entra pelo código<br>
+                                                    <code>POST /groups/&lt;group_id&gt;/participants</code> — add/remove/promover/demover<br>
+                                                    <code>POST /groups/&lt;group_id&gt;/leave</code> — sair do grupo<br>
+                                                    <code>POST /groups/&lt;group_id&gt;/revoke-invite</code> — revoga link de convite<br>
+                                                    <code>PUT /groups/&lt;group_id&gt;/subject</code> — altera título<br>
+                                                    <code>PUT /groups/&lt;group_id&gt;/description</code> — altera descrição<br>
+                                                    <code>PUT /groups/&lt;group_id&gt;/settings</code> — define restrições<br>
+                                                    <code>GET /groups/&lt;group_id&gt;/invite-code</code> — recupera código de convite
+                                                </p>
+
+                                                <p class="fw-bold small mb-1">Exemplo: criar grupo</p>
+                                                <div class="code-block mb-3">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>curl -X POST "{{ request.scheme }}://{{ request.get_host }}/api/v1/groups/create" \
+-H "Authorization: Bearer {{ instance.token }}" \
+-H "Content-Type: application/json" \
+-d '{
+  "subject": "Meu Grupo API",
+  "participants": ["5511999998888@s.whatsapp.net"]
+}'</pre>
+                                                </div>
+
+                                                <p class="fw-bold small mb-1">Exemplo: alterar assunto</p>
+                                                <div class="code-block">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>curl -X PUT "{{ request.scheme }}://{{ request.get_host }}/api/v1/groups/1203630XXXXXXXX@g.us/subject" \
+-H "Authorization: Bearer {{ instance.token }}" \
+-H "Content-Type: application/json" \
+-d '{
+  "subject": "Novo nome do grupo"
+}'</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- PERFIL & USUÁRIOS -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#endProfileUsers">
+                                                <span class="badge bg-warning me-2">GET/PUT/POST</span> <strong>Perfil & Usuários</strong>
+                                            </button>
+                                        </h2>
+                                        <div id="endProfileUsers" class="accordion-collapse collapse" data-bs-parent="#apiAccordion">
+                                            <div class="accordion-body">
+                                                <p class="small text-muted mb-2">
+                                                    <code>GET /users/&lt;jid&gt;/exists</code> — verifica se o número possui WhatsApp<br>
+                                                    <code>GET /users/&lt;jid&gt;/avatar</code> — obtém foto de perfil<br>
+                                                    <code>GET /users/&lt;jid&gt;/status</code> — status (frase) do usuário<br>
+                                                    <code>GET /users/&lt;jid&gt;/business-profile</code> — perfil comercial (se houver)<br>
+                                                    <code>GET /users/blocklist</code> — lista de bloqueados<br>
+                                                    <code>POST /users/&lt;jid&gt;/block</code> — bloquear ou desbloquear contato<br>
+                                                    <code>PUT /profile/name</code> — alterar nome de perfil<br>
+                                                    <code>PUT /profile/status</code> — alterar frase de status<br>
+                                                    <code>PUT /profile/picture</code> — atualizar foto do perfil (multipart/form-data)<br>
+                                                    <code>DELETE /profile/picture</code> — remover foto de perfil<br>
+                                                    <code>GET /privacy</code> — obter configurações de privacidade<br>
+                                                    <code>PUT /privacy/last-seen</code> — definir visto por último (last-seen)<br>
+                                                    <code>PUT /privacy/online</code> — definir visibilidade do status online
+                                                </p>
+
+                                                <p class="fw-bold small mb-1">Exemplo: checar se número está no WhatsApp</p>
+                                                <div class="code-block mb-3">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>curl -X GET "{{ request.scheme }}://{{ request.get_host }}/api/v1/users/5511999998888@s.whatsapp.net/exists" \
+-H "Authorization: Bearer {{ instance.token }}"</pre>
+                                                </div>
+
+                                                <p class="fw-bold small mb-1">Exemplo: atualizar status</p>
+                                                <div class="code-block">
+                                                    <button class="code-copy" onclick="copyCode(this)">Copiar</button>
+<pre>curl -X PUT "{{ request.scheme }}://{{ request.get_host }}/api/v1/profile/status" \
+-H "Authorization: Bearer {{ instance.token }}" \
+-H "Content-Type: application/json" \
+-d '{
+  "status": "Usando a API Bumbbe Chat 🚀"
+}'</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <!-- TESTE DE ENDPOINT (CONSOLE) -->
+                            <div class="tab-pane fade" id="api-tester" role="tabpanel">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6 class="fw-bold mb-2">Console de testes da API</h6>
+                                        <p class="small text-muted mb-3">
+                                            Use este console para testar rapidamente qualquer endpoint da API V1 desta instância.
+                                            Basta informar o método, o caminho relativo (por exemplo, <code>/messages/send</code>),
+                                            opcionalmente o corpo em JSON e clicar em <strong>Enviar requisição</strong>.
+                                        </p>
+
+                                        <ol class="small text-muted mb-3">
+                                            <li><strong>Escolha o método HTTP</strong> (GET, POST, PUT, PATCH, DELETE).</li>
+                                            <li><strong>Informe apenas o caminho</strong>, sem repetir a URL base (ela já está fixa em <code>/api/v1</code>).</li>
+                                            <li><strong>Opcional</strong>: adicione headers extras em JSON e um corpo (para POST/PUT/PATCH).</li>
+                                            <li>Clique em <strong>Enviar requisição</strong> e veja o <strong>status</strong> + <strong>resposta</strong> logo abaixo.</li>
+                                        </ol>
+
+                                        <form id="apiTestForm">
+                                            <div class="row g-3 mb-3">
+                                                <div class="col-md-3">
+                                                    <label class="form-label small fw-bold">Método</label>
+                                                    <select name="method" class="form-select form-select-sm">
+                                                        <option value="GET">GET</option>
+                                                        <option value="POST" selected>POST</option>
+                                                        <option value="PUT">PUT</option>
+                                                        <option value="PATCH">PATCH</option>
+                                                        <option value="DELETE">DELETE</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-9">
+                                                    <label class="form-label small fw-bold">Caminho relativo</label>
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text">{{ request.scheme }}://{{ request.get_host }}/api/v1</span>
+                                                        <input type="text" name="path" class="form-control" placeholder="/messages/send" required>
+                                                    </div>
+                                                    <small class="text-muted">
+                                                        Ex.: <code>/messages/send</code>, <code>/chats/archive</code>, <code>/groups</code> etc.
+                                                    </small>
+                                                </div>
+                                            </div>
+
+                                            <div class="form-check form-switch mb-3">
+                                                <input class="form-check-input" type="checkbox" name="use_auth" id="useAuthSwitch" checked>
+                                                <label class="form-check-label small" for="useAuthSwitch">
+                                                    Adicionar automaticamente o header <code>Authorization: Bearer {{ instance.token }}</code> (recomendado)
+                                                </label>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Headers adicionais (JSON opcional)</label>
+                                                <textarea name="headers" class="form-control" rows="2" placeholder='{"X-Exemplo": "123"}'></textarea>
+                                                <small class="text-muted">
+                                                    Caso informe algo aqui, deve ser um JSON válido. Ele será mesclado com o header de autorização (se marcado acima).
+                                                </small>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Corpo da requisição (JSON opcional)</label>
+                                                <textarea name="body" class="form-control" rows="6" placeholder='{
+  "to": "5511999998888",
+  "message": "Exemplo enviado pelo console da API"
+}'></textarea>
+                                                <small class="text-muted">
+                                                    Para <strong>GET</strong> e <strong>DELETE</strong> o corpo é ignorado. Para os demais métodos, se você enviar JSON inválido, a API pode responder com erro 400.
+                                                </small>
+                                            </div>
+
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-paper-plane me-1"></i> Enviar requisição
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <div class="card d-none" id="apiTestResult">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="fw-bold mb-0">Resposta</h6>
+                                            <span class="badge bg-secondary" id="apiTestStatus">–</span>
+                                        </div>
+                                        <div class="code-block mb-0">
+                                            <pre id="apiTestBody" class="mb-0">// A resposta aparecerá aqui</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- CONFIGURAÇÕES -->
+                    <div class="tab-pane fade" id="settings">
+                        <form id="webhookForm">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">URL do Webhook</label>
+                                <input type="url" class="form-control" name="url" value="{{ webhook_config.url|default:'' }}">
+                                <small class="text-muted">
+                                    O Node enviará eventos (mensagens, presença, status de conexão) para esta URL em tempo real.
+                                </small>
+                            </div>
+                            <div class="d-flex gap-3 mb-4">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="send_messages" {% if webhook_config.send_messages %}checked{% endif %}>
+                                    <label class="form-check-label">Mensagens</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="send_presence" {% if webhook_config.send_presence %}checked{% endif %}>
+                                    <label class="form-check-label">Presença</label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-dark">Salvar Configurações</button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-container">
+        <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body" id="toastMessage"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const instanceId = "{{ instance.id }}";
+        const csrfToken = "{{ csrf_token }}";
+        
+        const urls = {
+            status: "{% url 'fillow:api_get_status' instance.id %}",
+            connect: "{% url 'fillow:api_connect_instance' instance.id %}",
+            disconnect: "{% url 'fillow:api_disconnect_instance' instance.id %}",
+            webhook: "{% url 'fillow:api_update_webhook' instance.id %}",
+            messages: "{% url 'fillow:api_get_messages' instance.id %}",
+            testSend: "{% url 'fillow:api_send_test' instance.id %}",
+            testMedia: "{% url 'fillow:api_send_media' instance.id %}"
+        };
+
+        // --- AUTO-CONNECT (ANTI-FLOOD) ---
+        // Se a instância estiver DESATIVADA / DESCONECTADA / NÃO ENCONTRADA, tenta religar automaticamente
+        // enquanto o usuário estiver nesta página (porque fetchStatus já roda a cada 3s).
+        let _autoConnectRunning = false;
+        let _lastAutoConnectAt = 0;
+        const AUTO_CONNECT_MIN_INTERVAL_MS = 15000; // 15s de intervalo mínimo entre tentativas
+
+        async function autoConnectIfNeeded(status) {
+            const st = String(status || '').toUpperCase();
+            const should = ['DISCONNECTED', 'NOT_FOUND', 'DELETED', 'DESATIVADO', 'INACTIVE', 'DISABLED'].includes(st);
+
+            if (!should) return;
+            const now = Date.now();
+            if (_autoConnectRunning) return;
+            if (now - _lastAutoConnectAt < AUTO_CONNECT_MIN_INTERVAL_MS) return;
+
+            _autoConnectRunning = true;
+            _lastAutoConnectAt = now;
+
+            try {
+                await fetch(urls.connect, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken }
+                });
+            } catch (e) {
+                console.error('Auto-connect falhou:', e);
+            } finally {
+                _autoConnectRunning = false;
+            }
+        }
+
+
+        // --- UTILS COPY ---
+        function copyToClip(id) {
+            const el = document.getElementById(id);
+            el.select();
+            navigator.clipboard.writeText(el.value);
+            showToast('Copiado para área de transferência!');
+        }
+
+        function copyCode(btn) {
+            const code = btn.nextElementSibling.innerText;
+            navigator.clipboard.writeText(code);
+            const original = btn.innerText;
+            btn.innerText = 'Copiado!';
+            setTimeout(() => btn.innerText = original, 2000);
+        }
+
+        function copyToken() {
+            navigator.clipboard.writeText(document.getElementById('apiTokenField').value);
+            showToast('Token copiado!');
+        }
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            startPolling();
+        });
+
+        function showToast(msg, type='success') {
+            const el = document.getElementById('liveToast');
+            document.getElementById('toastMessage').innerText = msg;
+            el.className = `toast align-items-center text-white border-0 bg-${type}`;
+            new bootstrap.Toast(el).show();
+        }
+
+        // --- POLLING ---
+        function startPolling() {
+            fetchStatus(); 
+            fetchMessages();
+            setInterval(fetchStatus, 3000);
+            setInterval(fetchMessages, 3000);
+        }
+
+        // Status Logic
+        async function fetchStatus() {
+            try {
+                const r = await fetch(urls.status);
+                const d = await r.json();
+                
+                const badge = document.getElementById('status-badge');
+                const qrImg = document.getElementById('qr-image');
+                const qrPh = document.getElementById('qr-placeholder');
+                const btnC = document.getElementById('btn-connect');
+                const btnD = document.getElementById('btn-disconnect');
+
+                // Atualiza o campo do Authorization automaticamente quando o token chega
+                if (d && d.token) {
+                    const authField = document.getElementById('authHeaderField');
+                    if (authField) authField.value = `Bearer ${d.token}`;
+                }
+
+
+
+                if(d.status === 'CONNECTED') {
+                    badge.className = 'badge bg-success px-3 py-2'; 
+                    badge.innerText = 'Conectado';
+                    qrImg.classList.add('d-none'); 
+                    qrPh.classList.remove('d-none');
+                    qrPh.innerHTML = '<i class="fas fa-check-circle fa-3x text-success"></i><p class="mt-2 mb-0">Pronto para uso</p>';
+                    btnC.classList.add('d-none'); 
+                    btnD.classList.remove('d-none');
+                    if(d.phone) document.getElementById('connected-phone').innerText = d.phone;
+                } else if(d.qrcode) {
+                    badge.className = 'badge bg-warning text-dark px-3 py-2'; 
+                    badge.innerText = 'Leia o QR';
+                    qrImg.src = d.qrcode; 
+                    qrImg.classList.remove('d-none'); 
+                    qrPh.classList.add('d-none');
+                    btnC.classList.add('d-none');
+                } else {
+                    badge.className = 'badge bg-secondary px-3 py-2'; 
+                    badge.innerText = d.status || 'Desconectado';
+                    qrImg.classList.add('d-none'); 
+                    qrPh.classList.remove('d-none'); 
+                    qrPh.innerHTML = '<p class="mb-0">Aguardando conexão...</p>';
+                    btnC.classList.remove('d-none'); 
+                    btnD.classList.add('d-none');
+                }
+            
+
+                // Se estiver desconectado/desativado e não houver QR ainda, tenta religar automaticamente
+                await autoConnectIfNeeded(d.status);
+
+} catch(e){
+                console.error(e);
+            }
+        }
+
+        // --- CHAT LOGIC ---
+        let lastMsgId = null; 
+
+        async function fetchMessages(manual=false) {
+            try {
+                const r = await fetch(urls.messages);
+                const msgs = await r.json();
+                
+                if(!msgs || msgs.length === 0) {
+                    document.getElementById('chat-list').innerHTML = '<div class="text-center mt-5 text-muted"><i class="far fa-comment-dots fa-2x mb-3"></i><br>Nenhuma mensagem encontrada.</div>';
+                    return;
+                }
+                
+                if(lastMsgId === msgs[0].id && !manual) return;
+                lastMsgId = msgs[0].id;
+
+                renderChat(msgs);
+            } catch(e){
+                console.error("Erro ao buscar mensagens:", e);
+            }
+        }
+
+        function renderChat(msgs) {
+            const list = document.getElementById('chat-list');
+            const sorted = [...msgs].reverse();
+            
+            list.innerHTML = sorted.map(m => {
+                const dir = m.from_me ? 'out' : 'in';
+                const sender = m.from_me ? 'Você' : (m.push_name || m.remote_jid);
+                let content = m.content || '';
+                
+                const dateObj = new Date(m.timestamp);
+                const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                if(m.message_type !== 'text') {
+                    let icon = 'fa-file';
+                    if(m.message_type === 'image') icon = 'fa-image';
+                    if(m.message_type === 'video') icon = 'fa-video';
+                    if(m.message_type === 'audio') icon = 'fa-microphone';
+                    content = `<span class="msg-type-badge text-${m.from_me?'success':'primary'}"><i class="fas ${icon}"></i> ${m.message_type}</span> ${content}`;
+                }
+
+                return `
+                    <div class="msg-row ${dir}">
+                        <div class="msg-bubble">
+                            <div class="small fw-bold mb-1 opacity-75">${sender}</div>
+                            <div>${content}</div>
+                            <span class="msg-meta">${timeStr}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            list.scrollTop = list.scrollHeight;
+        }
+
+        // --- AÇÕES DE CONEXÃO ---
+        async function connectInstance() {
+            await fetch(urls.connect, {method:'POST', headers:{'X-CSRFToken':csrfToken}});
+        }
+        async function disconnectInstance() {
+            if(confirm('Desconectar esta sessão?')) {
+                await fetch(urls.disconnect, {method:'POST', headers:{'X-CSRFToken':csrfToken}});
+            }
+        }
+
+        // --- TESTE TEXTO ---
+        document.getElementById('testSendForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnTestSend');
+            btn.disabled=true; btn.innerText='Enviando...';
+            
+            const data = {
+                to: e.target.to.value,
+                message: e.target.message.value
+            };
+            
+            try {
+                const r = await fetch(urls.testSend, {
+                    method:'POST',
+                    headers:{
+                        'Content-Type':'application/json',
+                        'X-CSRFToken':csrfToken
+                    },
+                    body:JSON.stringify(data)
+                });
+                if(r.ok) { 
+                    showToast('Mensagem enviado com sucesso!'); 
+                    e.target.reset(); 
+                    fetchMessages(true); 
+                } else {
+                    showToast('Erro ao enviar mensagem.', 'danger');
+                }
+            } catch {
+                showToast('Erro de rede.', 'danger');
+            }
+            btn.disabled=false; btn.innerText='Enviar Texto';
+        });
+
+        // --- TESTE MÍDIA ---
+        document.getElementById('testMediaForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnTestMedia');
+            btn.disabled=true; btn.innerText='Enviando Arquivo...';
+            
+            const formData = new FormData(e.target);
+            
+            try {
+                const r = await fetch(urls.testMedia, {
+                    method:'POST',
+                    headers:{'X-CSRFToken':csrfToken},
+                    body:formData
+                });
+                if(r.ok) { 
+                    showToast('Mídia enviada com sucesso!'); 
+                    e.target.reset(); 
+                    fetchMessages(true); 
+                } else {
+                    showToast('Erro ao enviar mídia.', 'danger');
+                }
+            } catch {
+                showToast('Erro de rede.', 'danger');
+            }
+            btn.disabled=false; btn.innerText='Enviar Mídia';
+        });
+        
+        // --- WEBHOOK CONFIG ---
+        document.getElementById('webhookForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerText;
+            btn.disabled = true; 
+            btn.innerText = 'Salvando...';
+
+            const payload = {
+                url: e.target.url.value,
+                send_messages: e.target.send_messages.checked,
+                send_presence: e.target.send_presence.checked
+            };
+
+            try {
+                const response = await fetch(urls.webhook, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    showToast('Configurações salvas com sucesso!');
+                } else {
+                    showToast('Erro ao salvar configurações.', 'danger');
+                    console.error(await response.json());
+                }
+            } catch (error) {
+                console.error(error);
+                showToast('Erro de conexão.', 'danger');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        });
+
+        // --- CONSOLE DA API (TESTER) ---
+        document.getElementById('apiTestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const method = e.target.method.value;
+            const path = (e.target.path.value || '').trim();
+            const useAuth = e.target.use_auth.checked;
+            const headersRaw = (e.target.headers.value || '').trim();
+            const bodyRaw = (e.target.body.value || '').trim();
+
+            if (!path) {
+                showToast('Informe um caminho relativo para o endpoint.', 'danger');
+                return;
+            }
+
+            const baseUrl = document.getElementById('baseUrlField').value.replace(/\/$/, '');
+            const cleanPath = '/' + path.replace(/^\/+/, '');
+            const url = baseUrl + cleanPath;
+
+            let headers = {};
+
+            if (headersRaw) {
+                try {
+                    headers = JSON.parse(headersRaw);
+                } catch (err) {
+                    showToast('Headers adicionais devem ser um JSON válido.', 'danger');
+                    return;
+                }
+            }
+
+            if (useAuth) {
+                headers['Authorization'] = document.getElementById('authHeaderField').value;
+            }
+
+            let options = { method, headers };
+
+            if (bodyRaw && !['GET', 'DELETE'].includes(method)) {
+                // Tenta ver se é JSON válido — se for, envia como JSON.
+                try {
+                    JSON.parse(bodyRaw);
+                    if (!headers['Content-Type']) {
+                        headers['Content-Type'] = 'application/json';
+                    }
+                } catch (err) {
+                    // Se não for JSON, deixa como texto cru. O usuário sabe o que está fazendo.
+                }
+                options['body'] = bodyRaw;
+            }
+
+            const resultCard = document.getElementById('apiTestResult');
+            const statusEl = document.getElementById('apiTestStatus');
+            const bodyEl = document.getElementById('apiTestBody');
+
+            resultCard.classList.remove('d-none');
+            statusEl.className = 'badge bg-secondary';
+            statusEl.innerText = 'Enviando...';
+            bodyEl.innerText = '';
+
+            try {
+                const resp = await fetch(url, options);
+                const text = await resp.text();
+                let formatted = text;
+
+                try {
+                    const json = JSON.parse(text);
+                    formatted = JSON.stringify(json, null, 2);
+                } catch (err) {
+                    // resposta não é JSON, mantém texto cru
+                }
+
+                statusEl.innerText = `Status: ${resp.status} ${resp.statusText}`;
+                statusEl.className = 'badge ' + (resp.ok ? 'bg-success' : 'bg-danger');
+                bodyEl.innerText = formatted || '// (sem corpo de resposta)';
+            } catch (err) {
+                statusEl.innerText = 'Erro de rede';
+                statusEl.className = 'badge bg-danger';
+                bodyEl.innerText = String(err);
+            }
+        });
+    </script>
+</body>
+</html>

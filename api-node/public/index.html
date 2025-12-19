@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Controle - API WhatsApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --aside-width: 380px;
+            --header-height: 64px;
+            --brand-color: #a3e635; /* Vibrant Lime Green */
+            --brand-glow: 0 0 25px rgba(163, 230, 53, 0.4);
+            --bg-dark: #0A0A0A; --text-dark: #e2e8f0;
+            --card-bg-dark: #1C1C1C; --border-dark: #2D2D2D;
+            --input-bg-dark: #0A0A0A; --message-bubble-dark: #0A0A0A;
+
+            /* Light Theme */
+            --bg-light: #f1f5f9; --text-light: #0f172a;
+            --card-bg-light: #ffffff; --border-light: #e2e8f0;
+            --input-bg-light: #eef2ff; --message-bubble-light: #e2e8f0;
+        }
+        html { scroll-behavior: smooth; }
+        html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; }
+        body.dark { --bg: var(--bg-dark); --text-color: var(--text-dark); --card-bg: var(--card-bg-dark); --border-color: var(--border-dark); --input-bg: var(--input-bg-dark); --message-bubble-bg: var(--message-bubble-dark); }
+        body.light { --bg: var(--bg-light); --text-color: var(--text-light); --card-bg: var(--card-bg-light); --border-color: var(--border-light); --input-bg: var(--input-bg-light); --message-bubble-bg: var(--message-bubble-light); }
+
+        body { background-color: var(--bg); color: var(--text-color); transition: background-color 0.3s ease, color 0.3s ease; }
+        
+        /* Layout classes */
+        .main-layout { display: grid; grid-template-columns: var(--aside-width) 1fr; grid-template-rows: var(--header-height) 1fr; height: 100vh; filter: blur(0); transition: filter 0.5s ease; }
+        header { grid-column: 1 / -1; } aside { grid-column: 1 / 2; grid-row: 2 / 3; } main { grid-column: 2 / 3; grid-row: 2 / 3; position: relative; }
+
+        /* Animations */
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes cascadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .content-enter { animation: slideInRight 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        .modal-enter { animation: scaleIn 0.3s ease-out forwards; }
+        .session-card { animation: cascadeIn 0.5s ease forwards; opacity: 0; animation-fill-mode: both; }
+
+        /* Component Styles */
+        .themed-card { background-color: var(--card-bg); border-color: var(--border-color); }
+        .themed-border { border-color: var(--border-color); }
+        .themed-hover:hover { background-color: rgba(120, 120, 120, 0.1); }
+        
+        .card-glow { position: relative; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .card-glow:before { content: ''; position: absolute; inset: -1px; border-radius: 0.5rem; border: 2px solid transparent; background: conic-gradient(from 90deg, transparent 20%, var(--glow-color), transparent 80%) border-box; -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0); mask-composite: exclude; opacity: 0; transition: opacity 0.3s ease; }
+        .card-glow:hover:before, .card-glow.active:before { opacity: 0.8; }
+        .card-glow.active { transform: scale(1.02); }
+        .status-green { --glow-color: var(--brand-color); } .status-red { --glow-color: #ef4444; } .status-yellow { --glow-color: #eab308; }
+
+        .btn-primary { background-color: var(--brand-color); color: #0A0A0A; transition: all 0.3s ease; box-shadow: 0 4px 15px -5px rgba(163, 230, 53, 0.3); }
+        .btn-primary:hover { box-shadow: var(--brand-glow); transform: translateY(-2px); filter: brightness(1.1); }
+        
+        .input-themed { background-color: var(--input-bg); border-color: var(--border-color); color: var(--text-color); }
+        .input-themed:focus { border-color: var(--brand-color); box-shadow: var(--brand-glow); outline: none; }
+        
+        .tab-slider .slider { background-color: var(--brand-color); box-shadow: var(--brand-glow); }
+        .message-bubble { background-color: var(--message-bubble-bg); }
+
+        ::-webkit-scrollbar { width: 8px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+        ::-webkit-scrollbar-thumb { border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+
+        /* LOGIN LOCK SCREEN */
+        #login-overlay { position: fixed; inset: 0; z-index: 100; background-color: #0A0A0A; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s ease; }
+        .blur-app { filter: blur(10px); pointer-events: none; }
+    </style>
+</head>
+<body class="dark"> <div id="login-overlay">
+        <div class="w-full max-w-md p-8 bg-[#1C1C1C] rounded-xl border border-[#2D2D2D] shadow-2xl text-center">
+            <div class="mb-6 flex justify-center">
+                <div class="p-3 rounded-full bg-lime-400/10 text-lime-400 shadow-[0_0_20px_rgba(163,230,53,0.2)]">
+                    <i data-lucide="lock" class="w-8 h-8"></i>
+                </div>
+            </div>
+            <h2 class="text-2xl font-bold text-white mb-2">Acesso Restrito</h2>
+            <p class="text-slate-400 text-sm mb-6">Insira a Chave de API Mestra configurada no servidor para acessar o painel de controle.</p>
+            
+            <form id="login-form" class="space-y-4">
+                <div class="relative">
+                    <i data-lucide="key-round" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                    <input type="password" id="login-key" class="w-full bg-[#0A0A0A] border border-[#2D2D2D] text-white p-3 pl-10 rounded-lg focus:border-lime-400 focus:ring-1 focus:ring-lime-400 outline-none transition-all placeholder:text-slate-600" placeholder="Sua API Key..." required>
+                </div>
+                <button type="submit" id="login-btn" class="w-full bg-lime-400 text-black font-bold py-3 rounded-lg hover:bg-lime-300 transition-all hover:scale-[1.02] shadow-lg shadow-lime-400/20">
+                    Acessar Painel
+                </button>
+            </form>
+            <p id="login-error" class="text-red-500 text-sm mt-4 hidden font-medium"></p>
+        </div>
+    </div>
+
+    <div id="app-wrapper" class="main-layout blur-app">
+        <header class="themed-card themed-border flex items-center justify-between px-6 z-20 border-b">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 rounded-lg text-black shadow-lg" style="background-color: var(--brand-color); box-shadow: var(--brand-glow);"><i data-lucide="message-square-more"></i></div>
+                <h1 class="text-xl font-bold">API WhatsApp Manager</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div id="api-status" class="flex items-center space-x-2">
+                    <div class="h-3 w-3 rounded-full bg-red-500 transition-colors" id="socket-indicator"></div>
+                    <span class="text-sm font-medium text-slate-400" id="socket-status">Desconectado</span>
+                </div>
+                <button id="theme-toggle" class="p-2 rounded-full themed-hover">
+                    <i data-lucide="sun" id="sun-icon"></i>
+                    <i data-lucide="moon" id="moon-icon" class="hidden"></i>
+                </button>
+            </div>
+        </header>
+
+        <aside class="themed-card themed-border border-r flex flex-col z-10">
+            <div class="p-4 themed-border border-b space-y-4 flex-shrink-0">
+                <h2 class="font-semibold text-lg">Gerenciamento</h2>
+                <div class="bg-lime-400/5 p-3 rounded border border-lime-400/20">
+                     <p class="text-xs text-lime-400 font-mono flex items-center gap-2"><i data-lucide="shield-check" class="w-3 h-3"></i> Autenticado como Admin</p>
+                </div>
+                <div>
+                    <label for="new-session-id" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nova Conexão</label>
+                    <div class="relative mt-1">
+                        <i data-lucide="server" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 z-10"></i>
+                        <input type="text" id="new-session-id" class="input-themed w-full p-2 pl-9 pr-10 border rounded-md text-sm transition" placeholder="Nome da sessão (ex: vendas)">
+                        <button id="create-session-btn" class="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors disabled:opacity-50 btn-primary"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div id="sessions-container" class="overflow-y-auto flex-grow p-3 space-y-2"></div>
+        </aside>
+
+        <main id="main-content" class="flex flex-col overflow-hidden">
+             <div class="absolute inset-0 bg-grid-slate-700/10 [mask-image:linear-gradient(to_bottom,white_20%,transparent_70%)]"></div>
+            <div id="welcome-panel" class="relative flex flex-col items-center justify-center h-full p-4 text-center z-10">
+                <i data-lucide="power-off" class="w-20 h-20 text-slate-400/20"></i>
+                <h2 class="text-2xl mt-4 font-bold">Nenhuma sessão selecionada</h2>
+                <p class="text-md text-slate-400 mt-1">Crie ou selecione uma conexão na barra lateral para começar.</p>
+            </div>
+
+            <div id="session-view" class="hidden flex-col h-full w-full z-10">
+                <div class="themed-card themed-border border-b p-3 flex items-center justify-between flex-shrink-0">
+                    <h3 class="text-lg font-semibold" id="session-header-id"></h3>
+                    <button id="disconnect-btn" class="bg-red-600 text-white px-3 py-1 text-xs font-semibold rounded-md hover:bg-red-500 transition-all hover:scale-105 shadow-md hover:shadow-lg shadow-red-500/20 flex items-center space-x-1.5"><i data-lucide="trash-2" class="w-4 h-4"></i><span>Desconectar e Apagar</span></button>
+                </div>
+                <div id="session-content-wrapper" class="flex-grow overflow-y-auto p-6 space-y-6 opacity-0">
+                    
+                    <div id="token-panel" class="themed-card border p-4 rounded-lg shadow-lg hidden">
+                         <label class="text-sm font-bold flex items-center space-x-2"><i data-lucide="key-round" class="w-4 h-4" style="color: var(--brand-color);"></i><span>TOKEN DE SESSÃO (BEARER)</span></label>
+                        <div class="flex items-center mt-2 bg-black/20 p-2 rounded-md ring-1 ring-slate-700">
+                            <input type="text" id="session-token-input" class="flex-grow bg-transparent text-sm font-mono text-slate-400" readonly>
+                            <button id="copy-token-btn" class="ml-2 p-1 text-slate-400 hover:text-lime-400"><i data-lucide="copy" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+
+                    <div id="messages-panel" class="themed-card border p-4 rounded-lg shadow-lg h-96 flex flex-col">
+                        <h4 class="text-sm font-bold mb-2 flex-shrink-0 flex items-center space-x-2"><i data-lucide="inbox" class="w-4 h-4" style="color: var(--brand-color);"></i><span>Mensagens Recebidas</span></h4>
+                        <div id="messages-list" class="space-y-3 text-sm overflow-y-auto flex-grow pr-2"></div>
+                    </div>
+
+                    <div class="themed-card border p-4 rounded-lg shadow-lg">
+                        <div id="tabs-container" class="tab-slider relative flex themed-border border-b mb-4">
+                            <button data-tab="text" class="tab-button flex-1 py-2 text-sm font-semibold text-slate-400 transition-colors z-10">Mensagem de Texto</button>
+                            <button data-tab="media" class="tab-button flex-1 py-2 text-sm font-semibold text-slate-400 transition-colors z-10">Enviar Mídia</button>
+                            <div id="tab-slider" class="slider absolute bottom-[-1px] left-0 h-0.5 transition-all duration-300"></div>
+                        </div>
+                        
+                        <div id="send-text-panel">
+                             <div class="space-y-3">
+                                 <input id="send-to-text" type="text" placeholder="Número (ex: 5531999998888)" class="input-themed w-full p-2 border rounded-md text-sm transition">
+                                 <textarea id="send-text-message" placeholder="Digite sua mensagem" class="input-themed w-full p-2 border rounded-md text-sm h-24 resize-none transition"></textarea>
+                                 <button id="send-text-btn" class="btn-primary w-full px-3 py-2 rounded-md font-semibold flex items-center justify-center space-x-2 disabled:opacity-50">
+                                     <i data-lucide="send" class="w-4 h-4"></i>
+                                     <span>Enviar Texto</span>
+                                 </button>
+                             </div>
+                        </div>
+
+                        <div id="send-media-panel" class="hidden">
+                             <div class="space-y-3">
+                                 <input id="send-to-media" type="text" placeholder="Número (ex: 5531999998888)" class="input-themed w-full p-2 border rounded-md text-sm transition">
+                                 <input id="send-media-caption" type="text" placeholder="Legenda (opcional)" class="input-themed w-full p-2 border rounded-md text-sm transition">
+                                 <div>
+                                     <label for="send-media-file" class="themed-border w-full bg-black/20 border text-slate-300 px-3 py-2 rounded-md hover:bg-black/30 text-sm font-semibold flex items-center justify-center space-x-2 transition-colors cursor-pointer">
+                                         <i data-lucide="paperclip" class="w-4 h-4"></i>
+                                         <span id="file-name-label">Selecionar Arquivo</span>
+                                     </label>
+                                     <input id="send-media-file" type="file" class="hidden">
+                                 </div>
+                                 <button id="send-media-btn" class="btn-primary w-full px-3 py-2 rounded-md font-semibold flex items-center justify-center space-x-2 disabled:opacity-50">
+                                     <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                                     <span>Enviar Mídia</span>
+                                 </button>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="qr-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden z-50 backdrop-blur-sm">
+        <div class="themed-card border p-6 rounded-lg text-center shadow-2xl opacity-0 modal-enter">
+            <h2 class="text-xl font-bold mb-2">Escaneie o QR Code</h2>
+            <p class="text-sm text-slate-400 mb-4">Sessão: <span id="qr-session-id" class="font-mono bg-black/20 px-2 py-1 rounded"></span></p>
+            <div id="qr-image-container" class="w-64 h-64 mx-auto bg-white rounded-md flex items-center justify-center p-2 ring-1 ring-slate-600">
+                <img id="qr-image" src="" alt="QR Code" class="hidden">
+                <div id="qr-spinner" class="hidden">
+                    <i data-lucide="loader" class="w-16 h-16 text-slate-400 animate-spin"></i>
+                </div>
+            </div>
+            <button onclick="document.getElementById('qr-modal').classList.add('hidden')" class="mt-6 bg-slate-600 text-slate-200 px-4 py-2 rounded-md hover:bg-slate-500 transition-colors">Fechar</button>
+        </div>
+    </div>
+
+    <div id="delete-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden z-50 backdrop-blur-sm">
+        <div class="themed-card border p-6 rounded-lg shadow-2xl opacity-0 modal-enter text-center">
+            <h2 class="text-xl font-bold mb-2">Confirmar Exclusão</h2>
+            <p class="text-sm text-slate-400 mb-6">Você tem certeza que deseja apagar a sessão <br><strong id="delete-session-id" class="font-mono text-lg text-[var(--brand-color)]"></strong>?</p>
+            <div class="flex justify-center space-x-4">
+                <button id="cancel-delete-btn" class="bg-slate-600 text-slate-200 px-6 py-2 rounded-md hover:bg-slate-500 transition-colors">Cancelar</button>
+                <button id="confirm-delete-btn" class="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-500 transition-colors">Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-notification" class="fixed bottom-5 right-5 text-white py-3 px-5 rounded-lg shadow-2xl opacity-0 pointer-events-none translate-x-[110%] transition-all duration-500 z-[200]"></div>
+
+    <script>
+        // --- AUTHENTICATION & STARTUP ---
+        const state = { sessions: {}, activeSessionId: null, apiKey: localStorage.getItem('apiKey') || '' };
+        let ws = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            lucide.createIcons();
+            applyTheme(localStorage.getItem('theme') || 'dark');
+            
+            // Verifica se já temos uma chave salva e tenta validar
+            if (state.apiKey) {
+                document.getElementById('login-key').value = state.apiKey;
+                const isValid = await verifyKey(state.apiKey);
+                if (isValid) {
+                    unlockApp();
+                } else {
+                    // Chave inválida, limpa e mostra login
+                    localStorage.removeItem('apiKey');
+                    state.apiKey = '';
+                }
+            }
+        });
+
+        // Manipulador do Formulário de Login
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('login-btn');
+            const keyInput = document.getElementById('login-key').value.trim();
+            const errorMsg = document.getElementById('login-error');
+            
+            errorMsg.classList.add('hidden');
+            setButtonLoading(btn, true);
+
+            const isValid = await verifyKey(keyInput);
+
+            if (isValid) {
+                state.apiKey = keyInput;
+                localStorage.setItem('apiKey', keyInput);
+                unlockApp();
+            } else {
+                errorMsg.textContent = 'Chave inválida. Verifique o servidor.';
+                errorMsg.classList.remove('hidden');
+            }
+            setButtonLoading(btn, false);
+        });
+
+        // Função que verifica a chave no backend
+        async function verifyKey(key) {
+            try {
+                const res = await fetch('/auth/check', {
+                    headers: { 'x-api-key': key }
+                });
+                return res.status === 200;
+            } catch (err) {
+                console.error('Erro de conexão ao verificar auth:', err);
+                return false;
+            }
+        }
+
+        // Função que libera a tela e conecta o WebSocket
+        function unlockApp() {
+            const overlay = document.getElementById('login-overlay');
+            const app = document.getElementById('app-wrapper');
+            
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 500); // Remove do DOM após fade
+            
+            app.classList.remove('blur-app');
+            connectWebSocket(); // Só conecta WS após autenticação
+        }
+
+        function connectWebSocket() {
+            if (ws) return;
+            const wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';
+            // ENVIA A API KEY NA QUERY STRING PARA O WEBSOCKET VALIDAR
+            ws = new WebSocket(`${wsScheme}://${window.location.host}?apiKey=${state.apiKey}`);
+            
+            ws.onopen = () => {
+                document.getElementById('socket-indicator').classList.replace('bg-red-500', 'bg-lime-500');
+                document.getElementById('socket-status').textContent = 'Conectado';
+                ws.send(JSON.stringify({ type: 'get-all-sessions' }));
+            };
+
+            ws.onmessage = (event) => {
+                const { type, data } = JSON.parse(event.data);
+                switch (type) {
+                    case 'all-sessions':
+                        data.forEach((s, i) => updateSessionCard(s, i * 100));
+                        break;
+                    case 'session-update':
+                        updateSessionCard(data);
+                        break;
+                    case 'qr':
+                        const qrImage = document.getElementById('qr-image');
+                        const qrSpinner = document.getElementById('qr-spinner');
+                        qrImage.src = data.src;
+                        qrSpinner.classList.add('hidden');
+                        qrImage.classList.remove('hidden');
+                        break;
+                    case 'message':
+                        if (state.activeSessionId === data.sessionId) appendMessage(data);
+                        break;
+                }
+            };
+
+            ws.onclose = (e) => {
+                document.getElementById('socket-indicator').classList.replace('bg-lime-500', 'bg-red-500');
+                document.getElementById('socket-status').textContent = 'Desconectado';
+                if (e.code === 1008) {
+                    alert('Sessão encerrada por falha de autenticação. Recarregue a página.');
+                    localStorage.removeItem('apiKey');
+                    window.location.reload();
+                } else {
+                    setTimeout(connectWebSocket, 3000); // Tenta reconectar
+                }
+            };
+        }
+
+        // --- THEME MANAGER ---
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const tabsForTheme = document.querySelectorAll('.tab-button');
+
+        const applyTheme = (theme) => {
+            document.body.classList.remove('light', 'dark');
+            document.body.classList.add(theme);
+            sunIcon.classList.toggle('hidden', theme === 'light');
+            moonIcon.classList.toggle('hidden', theme === 'dark');
+            localStorage.setItem('theme', theme);
+
+            const activeTab = document.querySelector('.tab-button.active');
+            if (activeTab) {
+                tabsForTheme.forEach(t => t.classList.remove('text-slate-900', 'text-white'));
+                const activeColor = theme === 'dark' ? 'text-white' : 'text-slate-900';
+                activeTab.classList.add(activeColor);
+            }
+        };
+
+        themeToggle.addEventListener('click', () => {
+            const newTheme = document.body.classList.contains('dark') ? 'light' : 'dark';
+            applyTheme(newTheme);
+        });
+
+        // --- UTILITY ---
+        let sessionToDelete = null;
+
+        const showToast = (message, type = 'error') => {
+            const toast = document.getElementById('toast-notification');
+            toast.textContent = message;
+            const isDark = document.body.classList.contains('dark');
+            const textColor = isDark ? (type === 'success' ? 'text-black' : 'text-white') : 'text-black';
+            const bgColor = type === 'success' ? 'bg-lime-500' : 'bg-red-600';
+            toast.className = `fixed bottom-5 right-5 py-3 px-5 rounded-lg shadow-2xl transition-all duration-500 ${bgColor} ${textColor} opacity-100 translate-x-0 z-[200]`;
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-x-0');
+                toast.classList.add('opacity-0', 'translate-x-[110%]');
+            }, 3000);
+        };
+
+        const setButtonLoading = (btn, isLoading) => {
+            if (isLoading) {
+                btn.disabled = true;
+                btn.dataset.originalContent = btn.innerHTML;
+                btn.innerHTML = `<i data-lucide="loader" class="animate-spin w-4 h-4 mx-auto"></i>`;
+                lucide.createIcons();
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = btn.dataset.originalContent;
+                lucide.createIcons();
+            }
+        };
+
+        function appendMessage(data) {
+            const list = document.getElementById('messages-list');
+            const div = document.createElement('div');
+            div.className = `message-bubble p-3 rounded-lg rounded-tl-none self-start max-w-lg shadow-sm`;
+            div.innerHTML = `<div class="font-mono text-xs font-semibold" style="color: var(--brand-color);">${data.from}</div><div class="mt-1 break-words">${data.text}</div>`;
+            list.appendChild(div);
+            list.scrollTop = list.scrollHeight;
+        }
+
+        // --- SESSION MANAGEMENT UI ---
+        function updateSessionCard(data, delay = 0) {
+            if (!data) return;
+            if (data.status === 'DELETED') {
+                document.getElementById(`session-${data.sessionId}`)?.remove();
+                if (state.activeSessionId === data.sessionId) showWelcomePanel();
+                return;
+            }
+            state.sessions[data.sessionId] = data;
+            let card = document.getElementById(`session-${data.sessionId}`);
+            if (!card) {
+                card = document.createElement('div');
+                card.id = `session-${data.sessionId}`;
+                card.onclick = () => selectSession(data.sessionId);
+                document.getElementById('sessions-container').prepend(card);
+            }
+
+            const statusInfo = {
+                CONNECTED: { glow: 'status-green', text: `Conectado: ${data.name || data.phoneNumber}` },
+                PENDING: { glow: 'status-yellow', text: 'Aguardando QR. Clique para conectar...' },
+                DISCONNECTED: { glow: 'status-red', text: 'Desconectado. Clique para reconectar.' }
+            }[data.status] || { glow: '', text: 'Desconhecido' };
+            
+            card.className = `session-card card-glow themed-card p-3 rounded-lg cursor-pointer border ${statusInfo.glow} ${state.activeSessionId === data.sessionId ? 'active' : ''}`;
+            card.style.animationDelay = `${delay}ms`;
+            card.innerHTML = `<div class="flex items-center space-x-2"><div class="flex-1 min-w-0"><h4 class="font-bold text-sm truncate">${data.sessionId}</h4><p class="text-xs text-slate-400 truncate">${statusInfo.text}</p></div><button onclick="handleDeleteClick(event, '${data.sessionId}')" class="p-2 text-slate-500 hover:text-red-500 rounded-full transition-colors z-20 flex-shrink-0"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`;
+            lucide.createIcons();
+            
+            if (state.activeSessionId === data.sessionId) updateSessionView(data);
+            if (data.status === 'CONNECTED') document.getElementById('qr-modal').classList.add('hidden');
+        }
+        
+        function handleDeleteClick(event, sessionId) {
+            event.stopPropagation();
+            sessionToDelete = sessionId;
+            document.getElementById('delete-session-id').textContent = sessionId;
+            document.getElementById('delete-modal').classList.remove('hidden');
+        }
+        
+        function hideDeleteModal() {
+            sessionToDelete = null;
+            document.getElementById('delete-modal').classList.add('hidden');
+        }
+
+        async function confirmDelete() {
+            if (sessionToDelete) {
+                try {
+                    const response = await fetch(`/sessions/${sessionToDelete}`, { method: 'DELETE', headers: { 'x-api-key': state.apiKey } });
+                    if (!response.ok) throw new Error((await response.json()).error || 'Falha na API.');
+                    showToast(`Sessão ${sessionToDelete} removida.`, 'success');
+                } catch(err) { showToast(`Erro: ${err.message}`); }
+                finally {
+                    hideDeleteModal();
+                }
+            }
+        }
+
+        async function requestQrCode(sessionId) {
+            const qrModal = document.getElementById('qr-modal');
+            const qrImage = document.getElementById('qr-image');
+            const qrSpinner = document.getElementById('qr-spinner');
+
+            document.getElementById('qr-session-id').textContent = sessionId;
+            
+            qrImage.src = '';
+            qrImage.classList.add('hidden');
+            qrSpinner.classList.remove('hidden');
+            lucide.createIcons();
+            qrModal.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/sessions/start', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'x-api-key': state.apiKey }, 
+                    body: JSON.stringify({ sessionId }) 
+                });
+                if (!response.ok) {
+                    qrModal.classList.add('hidden');
+                    throw new Error((await response.json()).error || 'Falha na API.');
+                }
+            } catch (err) { 
+                showToast(`Erro ao iniciar sessão: ${err.message}`); 
+                qrModal.classList.add('hidden');
+            }
+        }
+
+        function selectSession(sessionId) {
+            const session = state.sessions[sessionId];
+            if (!session) return;
+            document.querySelectorAll('.session-card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`session-${sessionId}`)?.classList.add('active');
+            if (session.status === 'CONNECTED') {
+                if (state.activeSessionId === sessionId) return; 
+                state.activeSessionId = sessionId;
+                document.getElementById('welcome-panel').classList.add('hidden');
+                const sessionView = document.getElementById('session-view');
+                sessionView.classList.remove('hidden'); sessionView.classList.add('flex');
+                const wrapper = document.getElementById('session-content-wrapper');
+                wrapper.classList.remove('content-enter');
+                requestAnimationFrame(() => wrapper.classList.add('content-enter'));
+                updateSessionView(session); document.getElementById('messages-list').innerHTML = '';
+            } else {
+                state.activeSessionId = null; showWelcomePanel(); requestQrCode(sessionId);
+            }
+        }
+
+        function updateSessionView(data) {
+            document.getElementById('session-header-id').textContent = `Sessão: ${data.sessionId}`;
+            const tokenPanel = document.getElementById('token-panel');
+            if (data.status === 'CONNECTED' && data.token) {
+                document.getElementById('session-token-input').value = data.token;
+                tokenPanel.classList.remove('hidden');
+            } else { tokenPanel.classList.add('hidden'); }
+        }
+
+        function showWelcomePanel() {
+            state.activeSessionId = null;
+            document.getElementById('welcome-panel').classList.remove('hidden');
+            document.getElementById('session-view').classList.add('hidden');
+            document.querySelectorAll('.session-card').forEach(c => c.classList.remove('active'));
+        }
+
+        // --- BUTTON ACTIONS ---
+        document.getElementById('create-session-btn').onclick = async () => {
+            const sessionId = document.getElementById('new-session-id').value.trim();
+            if (!sessionId) return showToast('Insira um nome para a nova conexão.');
+            if (state.sessions[sessionId]) return showToast('Já existe uma sessão com este nome.');
+            const btn = document.getElementById('create-session-btn');
+            setButtonLoading(btn, true);
+            try {
+                await requestQrCode(sessionId);
+                document.getElementById('new-session-id').value = '';
+            } finally {
+                setButtonLoading(btn, false);
+            }
+        };
+
+        const formatPhoneNumber = (number) => number.replace(/\D/g, '').endsWith('@s.whatsapp.net') ? number.replace(/\D/g, '') : `${number.replace(/\D/g, '')}@s.whatsapp.net`;
+
+        document.getElementById('disconnect-btn').onclick = (event) => {
+            if (state.activeSessionId) handleDeleteClick(event, state.activeSessionId);
+        };
+        
+        document.getElementById('confirm-delete-btn').onclick = confirmDelete;
+        document.getElementById('cancel-delete-btn').onclick = hideDeleteModal;
+
+        document.getElementById('copy-token-btn').onclick = () => {
+            const tokenInput = document.getElementById('session-token-input');
+            tokenInput.select(); document.execCommand('copy');
+            const copyBtn = document.getElementById('copy-token-btn');
+            copyBtn.innerHTML = '<i data-lucide="check" class="w-5 h-5 text-lime-400"></i>'; lucide.createIcons();
+            setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy" class="w-5 h-5"></i>'; lucide.createIcons(); }, 2000);
+        };
+        
+        // Mensagens
+        document.getElementById('send-text-btn').onclick = async () => {
+            const btn = document.getElementById('send-text-btn'), to = document.getElementById('send-to-text').value.trim(), msg = document.getElementById('send-text-message').value.trim();
+            if (!to || !msg) return showToast('Preencha o número e a mensagem!');
+            setButtonLoading(btn, true);
+            try {
+                const response = await fetch(`/${state.activeSessionId}/messages/send`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessions[state.activeSessionId].token}` }, body: JSON.stringify({ to: formatPhoneNumber(to), message: msg }) });
+                if (!response.ok) throw new Error((await response.json()).error || 'Erro no envio');
+                showToast('Mensagem de texto enviada!', 'success'); document.getElementById('send-text-message').value = '';
+            } catch (err) { showToast(`Erro: ${err.message}`); } finally { setButtonLoading(btn, false); }
+        };
+        document.getElementById('send-media-btn').onclick = async () => {
+            const btn = document.getElementById('send-media-btn'), to = document.getElementById('send-to-media').value.trim(), caption = document.getElementById('send-media-caption').value.trim(), file = document.getElementById('send-media-file').files[0];
+            if (!to || !file) return showToast('Preencha o número e selecione um arquivo!');
+            const formData = new FormData(); formData.append('to', formatPhoneNumber(to)); formData.append('caption', caption); formData.append('file', file);
+            setButtonLoading(btn, true);
+            try {
+                const response = await fetch(`/${state.activeSessionId}/messages/send-media`, { method: 'POST', headers: { 'Authorization': `Bearer ${state.sessions[state.activeSessionId].token}` }, body: formData });
+                if (!response.ok) throw new Error((await response.json()).error || 'Erro no envio da mídia');
+                showToast('Mídia enviada!', 'success');
+                ['send-media-caption', 'send-media-file'].forEach(id => document.getElementById(id).value = '');
+                document.getElementById('file-name-label').textContent = 'Selecionar Arquivo';
+            } catch (err) { showToast(`Erro: ${err.message}`); } finally { setButtonLoading(btn, false); }
+        };
+        document.getElementById('send-media-file').onchange = (e) => { document.getElementById('file-name-label').textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Selecionar Arquivo'; };
+
+        // Tab Slider Logic
+        const tabs = document.querySelectorAll('.tab-button');
+        const slider = document.getElementById('tab-slider');
+        const switchTab = (tab, animate = true) => {
+            const target = tab.dataset.tab;
+            if (!animate) slider.classList.add('duration-0');
+            slider.style.width = `${tab.offsetWidth}px`;
+            slider.style.transform = `translateX(${tab.offsetLeft}px)`;
+            if (!animate) { requestAnimationFrame(() => slider.classList.remove('duration-0')); }
+            
+            tabs.forEach(t => t.classList.remove('active', 'text-white', 'text-slate-900'));
+            tab.classList.add('active');
+            const activeColor = document.body.classList.contains('dark') ? 'text-white' : 'text-slate-900';
+            tab.classList.add(activeColor);
+
+            document.getElementById('send-text-panel').classList.toggle('hidden', target !== 'text');
+            document.getElementById('send-media-panel').classList.toggle('hidden', target !== 'media');
+        };
+        tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab)));
+
+        // --- Init ---
+        switchTab(tabs[0], false);
+    </script>
+</body>
+</html>

@@ -1,0 +1,706 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentação da API | Bumbbe Chat</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+
+    <style>
+        :root { --primary: #84cc16; --dark: #0f172a; --light-bg: #f8fafc; --sidebar-width: 280px; }
+        body { font-family: 'Inter', sans-serif; background: var(--light-bg); color: #334155; }
+        h1, h2, h3, h4, h5 { font-family: 'Space Grotesk', sans-serif; color: var(--dark); font-weight: 700; }
+        .doc-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-width); background: #fff; border-right: 1px solid #e2e8f0; overflow-y: auto; z-index: 1000; }
+        .doc-content { margin-left: var(--sidebar-width); padding: 3rem 4rem; max-width: 1200px; }
+        .endpoint-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 2rem; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02); }
+        .endpoint-header { padding: 1.25rem; background: #fff; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+        .http-method { font-size: 0.75rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; min-width: 60px; text-align: center; }
+        .m-get { background: #dbeafe; color: #1e40af; }
+        .m-post { background: #dcfce7; color: #166534; }
+        .m-put { background: #fef9c3; color: #854d0e; }
+        .m-delete { background: #fee2e2; color: #991b1b; }
+        .endpoint-url { font-family: 'Courier New', monospace; font-weight: 600; color: #334155; margin-left: 10px; word-break: break-all; }
+        .endpoint-body { padding: 1.5rem; }
+        pre { border-radius: 8px; margin: 0; }
+        .param-table { width: 100%; font-size: 0.9rem; margin-bottom: 1rem; }
+        .param-table th { text-align: left; color: #64748b; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+        .param-table td { padding: 8px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+        .req-badge { font-size: 0.65rem; background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; margin-left: 5px; }
+        .nav-link { color: #64748b; padding: 0.5rem 1.5rem; display: block; text-decoration: none; transition: 0.2s; }
+        .nav-link:hover { color: var(--primary); transform: translateX(5px); background-color: #f0fdf4; }
+        .nav-header { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin: 1.5rem 1.5rem 0.5rem; }
+        .badge-new { background-color: var(--primary); color: #000; font-size: 0.6rem; padding: 2px 5px; border-radius: 4px; margin-left: 5px; font-weight: bold; }
+        
+        @media (max-width: 991px) {
+            .doc-sidebar { transform: translateX(-100%); transition: 0.3s; }
+            .doc-content { margin-left: 0; padding: 1.5rem; }
+            .doc-sidebar.active { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="doc-sidebar">
+        <div class="p-4 border-bottom d-flex align-items-center">
+            <div class="bg-dark text-white rounded d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px; font-weight: bold;">C</div>
+            <span class="fw-bold">Bumbbe Chat API v2</span>
+        </div>
+        
+        <div class="nav-header">Geral</div>
+        <a href="#intro" class="nav-link">Introdução</a>
+        <a href="#auth" class="nav-link">Autenticação</a>
+        <a href="{% url 'fillow:index' %}" class="nav-link text-primary fw-bold mt-2">Voltar ao Painel</a>
+
+        <div class="nav-header">Mensagens</div>
+        <a href="#msg-text" class="nav-link">Básicas (Texto/Media)</a>
+        <a href="#msg-edit" class="nav-link">Editar & Fixar <span class="badge-new">NOVO</span></a>
+        <a href="#msg-interactive" class="nav-link">Interativas (Botões/Listas)</a>
+        <a href="#msg-advanced" class="nav-link">Avançadas (Poll/Loc/React)</a>
+        <a href="#msg-utils" class="nav-link">Status & Download</a>
+
+        <div class="nav-header">Gestão de Chat</div>
+        <a href="#chat-manage" class="nav-link">Arquivar & Silenciar</a>
+        <a href="#chat-utils" class="nav-link">Histórico & Leitura</a>
+
+        <div class="nav-header">Grupos</div>
+        <a href="#groups-manage" class="nav-link">Gestão de Grupo</a>
+        <a href="#groups-settings" class="nav-link">Configurações & Foto</a>
+        <a href="#groups-actions" class="nav-link">Entrar/Sair/Convites</a>
+
+        <div class="nav-header">Usuários & Perfil</div>
+        <a href="#profile" class="nav-link">Meu Perfil</a>
+        <a href="#contacts" class="nav-link">Contatos & Bloqueio</a>
+        <a href="#privacy" class="nav-link">Privacidade</a>
+    </nav>
+
+    <div class="doc-content">
+        <!-- Mobile Toggle -->
+        <button class="btn btn-light d-lg-none mb-4" onclick="document.querySelector('.doc-sidebar').classList.toggle('active')">
+            <i class="fas fa-bars"></i> Menu
+        </button>
+
+        <section id="intro" class="mb-5">
+            <h1 class="display-5 mb-3">API Bumbbe Chat <small class="text-muted fs-4">Baileys v7+</small></h1>
+            <p class="lead text-muted">Documentação completa para integração via REST API. Atualizada para suportar as novas funcionalidades do WhatsApp 2025.</p>
+            <div class="alert alert-success border-0 shadow-sm">
+                <strong>Base URL:</strong> <code class="fw-bold text-dark">{{ api_base_url }}</code>
+            </div>
+            <p>Todos os endpoints abaixo são relativos à Base URL acima. O roteamento para sua instância é feito através do <code>session_id</code> na URL.</p>
+        </section>
+
+        <section id="auth" class="mb-5">
+            <h3>Autenticação</h3>
+            <p>Todas as requisições requerem o token da sua instância no cabeçalho.</p>
+            <div class="bg-dark text-white p-3 rounded mb-3">
+                <code>Authorization: Bearer SEU_TOKEN_DA_INSTANCIA</code>
+            </div>
+        </section>
+
+        <!-- ================= MENSAGENS ================= -->
+        <div class="nav-header mb-4 mt-5 display-6 text-dark border-bottom pb-2">Mensagens</div>
+
+        <section id="msg-text" class="endpoint-card">
+            <div class="endpoint-header">
+                <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/send</span></div>
+            </div>
+            <div class="endpoint-body">
+                <p>Envia mensagem de texto simples.</p>
+                <pre><code class="language-json">{ "to": "5511999999999@s.whatsapp.net", "message": "Olá mundo!" }</code></pre>
+            </div>
+        </section>
+
+        <section id="msg-media" class="endpoint-card">
+            <div class="endpoint-header">
+                <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/send-media</span></div>
+            </div>
+            <div class="endpoint-body">
+                <p>Envia Imagem, Vídeo, Áudio ou Documento. Detecta automaticamente pelo mimetype. Use <code>multipart/form-data</code>.</p>
+                <pre><code class="language-bash">curl -X POST "{{ api_base_url }}/sess_ID/messages/send-media" \
+-H "Authorization: Bearer TOKEN" \
+-F "to=5511999999999@s.whatsapp.net" \
+-F "caption=Legenda aqui" \
+-F "file=@foto.jpg"</code></pre>
+            </div>
+        </section>
+
+        <section id="msg-specials" class="mb-5">
+            <h4>Especiais (GIF, PTT, ViewOnce)</h4>
+            <div class="endpoint-card mt-3">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/send-voice</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Envia áudio como <strong>Nota de Voz (PTT)</strong> (microfone azul).</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/send-gif</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Envia vídeo curto como GIF animado.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/view-once</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Envia mídia de visualização única.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="msg-edit" class="mb-5">
+            <h4>Edição e Interação</h4>
+            
+            <div class="endpoint-card mt-3">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-put">PUT</span> <span class="endpoint-url">/:session_id/messages/edit</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Edita uma mensagem enviada anteriormente.</p>
+                    <pre><code class="language-json">{
+  "to": "5511999999999@s.whatsapp.net",
+  "key": { "remoteJid": "...", "id": "MSG_ID", "fromMe": true },
+  "newText": "Texto corrigido!"
+}</code></pre>
+                </div>
+            </div>
+
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/pin</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Fixa ou desafixa uma mensagem no topo do chat.</p>
+                    <pre><code class="language-json">{
+  "to": "5511999999999@s.whatsapp.net",
+  "key": { "id": "MSG_ID", "fromMe": true },
+  "type": 1, // 1 = Fixar, 0 = Desafixar
+  "time": 86400 // Tempo em segundos (24h)
+}</code></pre>
+                </div>
+            </div>
+
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/star</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Favorita (Estrela) mensagens.</p>
+                    <pre><code class="language-json">{
+  "to": "5511999999999@s.whatsapp.net",
+  "messages": [{ "id": "MSG_ID", "fromMe": true }],
+  "star": true
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="msg-interactive" class="endpoint-card">
+            <div class="endpoint-header">
+                <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/interactive</span></div>
+            </div>
+            <div class="endpoint-body">
+                <p>Envia <strong>Botões</strong> ou <strong>Listas</strong> interativas.</p>
+                
+                <h6 class="mt-3 text-muted fw-bold">Exemplo: Botões</h6>
+                <pre><code class="language-json">{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "button",
+  "body": "Escolha uma opção:",
+  "footer": "Rodapé",
+  "buttons": [
+    { "id": "btn1", "text": "Sim" },
+    { "id": "btn2", "text": "Não" }
+  ]
+}</code></pre>
+
+                <h6 class="mt-3 text-muted fw-bold">Exemplo: Lista</h6>
+                <pre><code class="language-json">{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "list",
+  "body": "Selecione o produto:",
+  "title": "Catálogo",
+  "buttons": [{ "text": "Abrir Menu" }],
+  "sections": [
+    {
+      "title": "Eletrônicos",
+      "rows": [{ "title": "Celular", "rowId": "cel" }, { "title": "PC", "rowId": "pc" }]
+    }
+  ]
+}</code></pre>
+            </div>
+        </section>
+
+        <section id="msg-advanced" class="mb-5">
+            <h4>Mensagens Avançadas</h4>
+            <div class="endpoint-card mt-3">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/reaction</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Reage a uma mensagem com emoji.</p>
+                    <pre><code class="language-json">{ "to": "...", "key": { ... }, "emoji": "👍" }</code></pre>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/poll</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Cria uma enquete.</p>
+                    <pre><code class="language-json">{ "to": "...", "name": "Pergunta?", "options": ["A", "B"], "selectableCount": 1 }</code></pre>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/location</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Envia localização.</p>
+                    <pre><code class="language-json">{ "to": "...", "latitude": -23.5, "longitude": -46.6 }</code></pre>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/contact</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Envia um contato (VCard).</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/send-quote</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Responde (Quote) uma mensagem.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/forward</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Encaminha uma mensagem.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="msg-utils" class="mb-5">
+            <h4>Status & Download</h4>
+            <div class="endpoint-card mt-3">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/download</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Baixa a mídia de uma mensagem recebida. Retorna o binário (buffer).</p>
+                    <pre><code class="language-json">{ "message": { ...objeto message completo... } }</code></pre>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/send-status</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Publica um Status (Story) de texto.</p>
+                    <pre><code class="language-json">{ "message": "Bom dia!", "backgroundColor": "#FF0000", "font": 1 }</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= GESTÃO DE CHAT ================= -->
+        <div class="nav-header mb-4 mt-5 display-6 text-dark border-bottom pb-2">Gestão de Chat</div>
+
+        <section id="chat-manage" class="mb-5">
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/chats/:jid/archive</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Arquiva ou desarquiva um chat.</p>
+                    <pre><code class="language-json">{ "archive": true }</code></pre>
+                </div>
+            </div>
+
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/chats/:jid/mute</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Silencia um chat por tempo determinado.</p>
+                    <pre><code class="language-json">{ "time": 28800000 } // 8 horas em ms (null para desmutar)</code></pre>
+                </div>
+            </div>
+
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/chat/:jid/modify</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Modificação genérica de chat (Baileys raw).</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="chat-utils" class="mb-5">
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/chats/:jid/mark-read</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Marca o chat inteiro como lido ou não lido.</p>
+                    <pre><code class="language-json">{ "read": true }</code></pre>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/read</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Marca mensagens específicas como lidas (Blue tick).</p>
+                    <pre><code class="language-json">{ "keys": [{...}] }</code></pre>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/delete</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Apaga uma mensagem (Delete for everyone).</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/chat/:jid/history</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Busca histórico de mensagens.</p>
+                    <pre><code class="language-json">{ "count": 50, "key": {...} }</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= GRUPOS ================= -->
+        <div class="nav-header mb-4 mt-5 display-6 text-dark border-bottom pb-2">Grupos</div>
+
+        <section id="groups-manage" class="endpoint-card">
+            <div class="endpoint-header">
+                <div><span class="http-method m-get">GET</span> <span class="endpoint-url">/:session_id/groups</span></div>
+            </div>
+            <div class="endpoint-body">
+                <p>Lista todos os grupos com metadados completos.</p>
+            </div>
+        </section>
+
+        <section id="groups-manage-more" class="mb-5">
+            <div class="endpoint-card mt-3">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/groups/create</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Cria novo grupo.</p>
+                    <pre><code class="language-json">{ "subject": "Devs", "participants": ["5511...", "5521..."] }</code></pre>
+                </div>
+            </div>
+
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/groups/:id/participants</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Gerencia participantes.</p>
+                    <pre><code class="language-json">{ "action": "add", "participants": ["5511..."] } // add, remove, promote, demote</code></pre>
+                </div>
+            </div>
+
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-get">GET</span> <span class="endpoint-url">/:session_id/groups/:id/metadata</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Obtém metadados detalhados de um grupo específico.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="groups-settings" class="mb-5">
+            <h4>Configurações de Grupo</h4>
+            <div class="endpoint-card mt-3">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-put">PUT</span> <span class="endpoint-url">/:session_id/groups/:id/subject</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Altera o nome (assunto) do grupo.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-put">PUT</span> <span class="endpoint-url">/:session_id/groups/:id/description</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Altera a descrição do grupo.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-put">PUT</span> <span class="endpoint-url">/:session_id/groups/:id/settings</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Altera quem pode falar/editar (announcement, locked, etc).</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-put">PUT</span> <span class="endpoint-url">/:session_id/groups/:id/picture</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Atualiza a foto do grupo (Upload).</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/groups/:id/ephemeral</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Configura mensagens temporárias no grupo.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/groups/:id/member-add-mode</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Configura quem pode adicionar membros.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="groups-actions" class="mb-5">
+            <h4>Entrar e Sair</h4>
+            <div class="endpoint-card mt-3">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/groups/accept-invite-v4</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Aceita convite de grupo recebido via mensagem (V4).</p>
+                    <pre><code class="language-json">{ "key": { ... }, "inviteMessage": { ... } }</code></pre>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/groups/join</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Entra via código de convite (link).</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/groups/:id/leave</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Sai do grupo.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-get">GET</span> <span class="endpoint-url">/:session_id/groups/:id/invite-code</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Obtém link de convite.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/groups/:id/revoke-invite</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Revoga link de convite.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-get">GET</span> <span class="endpoint-url">/:session_id/groups/:id/requests</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Lista solicitações de entrada pendentes.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/groups/:id/requests</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Aprova/Rejeita solicitações.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= USUÁRIOS E PERFIL ================= -->
+        <div class="nav-header mb-4 mt-5 display-6 text-dark border-bottom pb-2">Usuários & Perfil</div>
+
+        <section id="profile" class="mb-5">
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-put">PUT</span> <span class="endpoint-url">/:session_id/profile/status</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Atualiza seu recado (Bio/Status).</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-put">PUT</span> <span class="endpoint-url">/:session_id/profile/name</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Atualiza seu nome de exibição (Push Name).</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-put">PUT</span> <span class="endpoint-url">/:session_id/profile/picture</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Atualiza sua foto de perfil (Upload).</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-delete">DELETE</span> <span class="endpoint-url">/:session_id/profile/picture</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Remove sua foto de perfil.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="contacts" class="mb-5">
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-get">GET</span> <span class="endpoint-url">/:session_id/users/:phone/lid</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Obtém o <strong>LID (Local ID)</strong> e JID de um número.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-get">GET</span> <span class="endpoint-url">/:session_id/users/:jid/exists</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Verifica se número existe no WhatsApp.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-get">GET</span> <span class="endpoint-url">/:session_id/users/:jid/avatar</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Obtém URL do avatar de um usuário.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-get">GET</span> <span class="endpoint-url">/:session_id/users/:jid/status</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Obtém o recado (status) de um usuário.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-get">GET</span> <span class="endpoint-url">/:session_id/users/:jid/business-profile</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Obtém perfil comercial.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/users/:phone/block</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Bloqueia ou desbloqueia contatos.</p>
+                    <pre><code class="language-json">{ "action": "block" } // ou "unblock"</code></pre>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-get">GET</span> <span class="endpoint-url">/:session_id/users/blocklist</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Lista usuários bloqueados.</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/users/presence</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Envia presença (Digitando...).</p>
+                </div>
+            </div>
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/users/presence-subscribe</span></div>
+                </div>
+                <div class="endpoint-body">
+                    <p>Inscreve para receber atualizações de presença de um usuário.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="calls" class="endpoint-card">
+            <div class="endpoint-header">
+                <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/calls/reject</span></div>
+            </div>
+            <div class="endpoint-body">
+                <p>Rejeita uma chamada de voz/vídeo recebida.</p>
+                <pre><code class="language-json">{ "callId": "...", "from": "..." }</code></pre>
+            </div>
+        </section>
+
+        <section id="broadcast" class="endpoint-card">
+            <div class="endpoint-header">
+                <div><span class="http-method m-post">POST</span> <span class="endpoint-url">/:session_id/messages/broadcast</span></div>
+            </div>
+            <div class="endpoint-body">
+                <p>Envia mensagem para lista de transmissão.</p>
+                <pre><code class="language-json">{ "message": "...", "recipients": ["jid1", "jid2"] }</code></pre>
+            </div>
+        </section>
+
+        <section id="privacy" class="endpoint-card">
+            <div class="endpoint-header">
+                <div><span class="http-method m-get">GET</span> <span class="endpoint-url">/:session_id/privacy</span></div>
+            </div>
+            <div class="endpoint-body">
+                <p>Retorna todas as configurações de privacidade atuais.</p>
+                <hr>
+                <p class="small text-muted">Endpoints para atualização (PUT):</p>
+                <ul class="small">
+                    <li><code>/privacy/online</code> - Quem vê online (all, match_last_seen)</li>
+                    <li><code>/privacy/last-seen</code> - Visto por último (all, contacts, none)</li>
+                    <li><code>/privacy/profile-picture</code> - Foto de perfil</li>
+                    <li><code>/privacy/read-receipts</code> - Confirmação de leitura (all, none)</li>
+                    <li><code>/privacy/groups-add</code> - Quem pode me adicionar em grupos</li>
+                    <li><code>/privacy/status</code> - Quem vê meus status</li>
+                    <li><code>/privacy/default-disappearing</code> - Timer padrão de msgs temporárias</li>
+                </ul>
+            </div>
+        </section>
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</body>
+</html>

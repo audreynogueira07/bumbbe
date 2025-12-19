@@ -1,0 +1,32 @@
+{% extends 'flowbot/base.html' %}
+{% block title %}FlowBots{% endblock %}
+{% block subtitle %}Seus bots offline{% endblock %}
+{% block topbar_actions %}
+  <a class="fb-btn fb-btn-primary" href="{% url 'flowbot:create' %}">+ Criar FlowBot</a>
+{% endblock %}
+
+{% block content %}
+  <div class="fb-grid">
+    {% for b in bots %}
+      <div class="fb-card">
+        <div class="fb-card-title">
+          <strong>{{ b.name }}</strong>
+          <span class="fb-pill {% if b.active %}ok{% else %}off{% endif %}">{% if b.active %}Ativo{% else %}Pausado{% endif %}</span>
+        </div>
+        <div class="fb-muted">{{ b.description|default:"" }}</div>
+        <div class="fb-card-actions">
+          <a class="fb-btn fb-btn-secondary" href="{% url 'flowbot:builder' b.id %}">Editor de fluxo</a>
+          <a class="fb-btn fb-btn-ghost" href="{% url 'flowbot:media' b.id %}">Arquivos</a>
+          <a class="fb-btn fb-btn-danger" href="{% url 'flowbot:delete' b.id %}">Excluir</a>
+        </div>
+        <div class="fb-footnote">Atualizado em {{ b.updated_at|date:"d/m/Y H:i" }}</div>
+      </div>
+    {% empty %}
+      <div class="fb-empty">
+        <h3>Nenhum FlowBot ainda</h3>
+        <p>Crie um bot offline e edite o fluxo em modo arrastar-e-soltar.</p>
+        <a class="fb-btn fb-btn-primary" href="{% url 'flowbot:create' %}">Criar agora</a>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

@@ -1,0 +1,379 @@
+{% load static custom_tags %}
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="{{ dz_array.public.description }}" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{{ dz_array.public.title }} | Login</title>
+    
+    <link rel="shortcut icon" type="image/png" href="{% static dz_array.public.favicon %}" />
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        /* --- VARIÁVEIS DA MARCA --- */
+        :root {
+            --brand-dark: #2e2e2e;   /* Fundo da página */
+            --brand-purple: #8c52ff; /* Detalhes */
+            --brand-orange: #ff751f; /* Botão */
+            --text-dark: #333333;    /* Texto dentro do card */
+            --input-bg: #f8f9fa;     /* Fundo do input */
+        }
+
+        /* --- ESTILOS GERAIS --- */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--brand-dark);
+            /* Grid Tecnológico no fundo escuro */
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            overflow: hidden;
+            margin: 0;
+            height: 100vh;
+        }
+
+        /* Wrapper Principal */
+        .login-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        /* --- ELEMENTOS FLUTUANTES (FUNDO) --- */
+        .tech-shape {
+            position: absolute;
+            z-index: 0;
+            opacity: 0.3; /* Opacidade padrão */
+            color: rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+        }
+        
+        /* Animação de Flutuar Orgânica (Lenta e Aleatória) */
+        @keyframes float {
+            0% { transform: translate(0px, 0px) rotate(0deg); }
+            33% { transform: translate(15px, -25px) rotate(5deg); }
+            66% { transform: translate(-15px, 10px) rotate(-5deg); }
+            100% { transform: translate(0px, 0px) rotate(0deg); }
+        }
+
+        .tech-shape i {
+            /* Sombra suave para dar profundidade no escuro */
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+            /* Animação padrão, tempo será variado por classe */
+            animation: float 12s ease-in-out infinite;
+        }
+
+        /* Configuração Individual dos Ícones */
+        
+        /* 1. Microchip (Esq/Topo) */
+        .shape-1 { top: 10%; left: 8%; color: var(--brand-purple); opacity: 0.15; }
+        .shape-1 i { font-size: 110px; animation-duration: 14s; }
+        
+        /* 2. Layer Group (Dir/Baixo) */
+        .shape-2 { bottom: 15%; right: 8%; color: var(--brand-orange); opacity: 0.15; }
+        .shape-2 i { font-size: 130px; animation-duration: 16s; animation-delay: 1s; }
+
+        /* 3. Branch (Dir/Topo - mais apagado) */
+        .shape-3 { top: 15%; right: 20%; color: #fff; opacity: 0.04; }
+        .shape-3 i { font-size: 90px; animation-duration: 18s; animation-delay: 2s; }
+
+        /* 4. Fingerprint (Esq/Baixo) */
+        .shape-4 { bottom: 20%; left: 15%; color: var(--brand-purple); opacity: 0.08; }
+        .shape-4 i { font-size: 100px; animation-duration: 13s; animation-delay: 0.5s; }
+
+        /* --- NOVOS ÍCONES --- */
+
+        /* 5. Code Tag (Centro/Topo) */
+        .shape-5 { top: 5%; left: 50%; transform: translateX(-50%); color: var(--brand-orange); opacity: 0.05; }
+        .shape-5 i { font-size: 150px; animation-duration: 20s; animation-delay: 3s; }
+
+        /* 6. Database (Extremo Esq/Meio) */
+        .shape-6 { top: 45%; left: -2%; color: #fff; opacity: 0.03; }
+        .shape-6 i { font-size: 180px; animation-duration: 22s; animation-delay: 1s; }
+
+        /* 7. Terminal (Extremo Dir/Meio) */
+        .shape-7 { top: 55%; right: 5%; color: var(--brand-purple); opacity: 0.1; }
+        .shape-7 i { font-size: 80px; animation-duration: 11s; animation-delay: 4s; }
+
+        /* 8. Bug (Baixo/Centro - pequeno detalhe) */
+        .shape-8 { bottom: 5%; left: 45%; color: #ff4757; opacity: 0.08; } /* Vermelho sutil */
+        .shape-8 i { font-size: 60px; animation-duration: 9s; animation-delay: 2s; }
+
+
+        /* --- CARTÃO DE LOGIN --- */
+        .login-card {
+            position: relative;
+            z-index: 10;
+            background: #ffffff; /* Fundo Branco Sólido */
+            border-radius: 20px;
+            padding: 50px 40px;
+            width: 100%;
+            max-width: 420px;
+            
+            /* Sombra elegante para destacar do fundo escuro */
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .logo-area {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+        .logo-area img {
+            max-height: 90px; /* AUMENTADO O TAMANHO DA LOGO */
+            transition: transform 0.3s;
+        }
+        .logo-area img:hover {
+            transform: scale(1.05);
+        }
+
+        .login-title {
+            text-align: center;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: var(--brand-dark); /* Texto escuro */
+            font-size: 1.5rem;
+        }
+
+        /* --- FORM STYLES --- */
+        .form-label {
+            color: #666; /* Cinza médio */
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .form-control {
+            background: var(--input-bg); /* Fundo cinza claro */
+            border: 1px solid #e1e1e1;
+            color: var(--text-dark);
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        
+        .form-control::placeholder {
+            color: #aaa;
+        }
+
+        .form-control:focus {
+            background: #fff;
+            border-color: var(--brand-purple); /* Foco Roxo */
+            box-shadow: 0 0 0 4px rgba(140, 82, 255, 0.1);
+            color: #000;
+        }
+
+        /* Ícone de Ver Senha */
+        .password-toggle-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #ccc;
+            font-size: 14px;
+            z-index: 10;
+            transition: color 0.3s ease;
+        }
+        .password-toggle-icon:hover {
+            color: var(--brand-orange);
+        }
+
+        /* Checkbox */
+        .form-check-input {
+            border-color: #ccc;
+            cursor: pointer;
+        }
+        .form-check-input:checked {
+            background-color: var(--brand-orange);
+            border-color: var(--brand-orange);
+        }
+        .form-check-label {
+            color: #666;
+            cursor: pointer;
+        }
+
+        /* Botão Orange */
+        .btn-brand {
+            background-color: var(--brand-orange);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 14px;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 15px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(255, 117, 31, 0.2);
+        }
+
+        .btn-brand:hover {
+            background-color: #e66516; 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 117, 31, 0.4);
+        }
+        
+        .btn-brand:active {
+            transform: translateY(0);
+        }
+
+        /* Alertas */
+        .alert-danger {
+            background: #fff5f5;
+            border: 1px solid #ffe3e3;
+            color: #ff4757;
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+
+        /* Footer Text */
+        .footer-text {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.75rem;
+            color: #999;
+            letter-spacing: 0.5px;
+        }
+        .footer-text strong {
+            color: var(--brand-purple);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 576px) {
+            .login-card {
+                padding: 30px 20px;
+            }
+            .tech-shape { display: none; } /* Ocultar ícones em telas muito pequenas para limpar a vista */
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="login-wrapper">
+        
+        <!-- Ícones de Fundo (Tech Shapes) -->
+        <div class="tech-shape shape-1">
+            <i class="fa-solid fa-microchip"></i>
+        </div>
+        
+        <div class="tech-shape shape-2">
+            <i class="fa-solid fa-layer-group"></i>
+        </div>
+        
+        <div class="tech-shape shape-3">
+            <i class="fa-solid fa-code-branch"></i>
+        </div>
+
+        <div class="tech-shape shape-4">
+            <i class="fa-solid fa-fingerprint"></i>
+        </div>
+
+        <!-- NOVOS ÍCONES ADICIONADOS -->
+        <div class="tech-shape shape-5">
+            <i class="fa-solid fa-code"></i>
+        </div>
+
+        <div class="tech-shape shape-6">
+            <i class="fa-solid fa-database"></i>
+        </div>
+
+        <div class="tech-shape shape-7">
+            <i class="fa-solid fa-terminal"></i>
+        </div>
+
+        <div class="tech-shape shape-8">
+            <i class="fa-solid fa-bug"></i>
+        </div>
+        <!-- FIM DOS ÍCONES -->
+
+        <div class="login-card">
+            <div class="logo-area">
+                <a href="{% url 'fillow:index' %}">
+                    <img src="{% static 'fillow/images/logo-full.png' %}" alt="Logo">
+                </a>
+            </div>
+            
+            {% comment %} <h4 class="login-title">Bem-vindo</h4> {% endcomment %}
+
+            {% if messages %}
+                <div class="alert alert-danger p-2 small text-center mb-3">
+                    {% for message in messages %}
+                        {{ message }}<br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'fillow:login' %}">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label class="form-label">Usuário</label>
+                    <input type="text" name="username" class="form-control" placeholder="Digite seu usuário" required>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Senha</label>
+                    <div style="position: relative;">
+                        <input type="password" name="password" id="password" class="form-control" placeholder="••••••••" required>
+                        <i class="fa fa-eye password-toggle-icon" id="toggleIcon" onclick="togglePassword()"></i>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="remember_me" name="remember_me">
+                        <label class="form-check-label small text-muted" for="remember_me">Lembrar acesso</label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-brand">Entrar</button>
+            </form>
+            
+            <div class="footer-text">
+                Powered by <strong>Bumbbe</strong>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mostrar/Ocultar Senha
+        function togglePassword() {
+            var passwordInput = document.getElementById("password");
+            var icon = document.getElementById("toggleIcon");
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+            } else {
+                passwordInput.type = "password";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+            }
+        }
+    </script>
+
+    {% for jsurl in dz_array.global.js.top %}
+    <script src="{% static jsurl %}"></script>
+    {% endfor %}
+
+</body>
+</html>

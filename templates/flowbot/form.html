@@ -1,0 +1,33 @@
+{% extends 'flowbot/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block subtitle %}Configuração inicial{% endblock %}
+
+{% block content %}
+  <div class="fb-card fb-card-pad fb-max-800">
+    <h2 class="fb-h2">{{ title }}</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="fb-field">
+        <label>Nome</label>
+        {{ form.name }}
+      </div>
+      <div class="fb-field">
+        <label>Ativo</label>
+        <div class="fb-switch">{{ form.active }} <span>Ligado</span></div>
+      </div>
+      <div class="fb-field">
+        <label>Descrição</label>
+        {{ form.description }}
+      </div>
+
+      {% if form.errors %}
+        <div class="fb-alert fb-alert-danger">Erros: {{ form.errors }}</div>
+      {% endif %}
+
+      <div class="fb-row">
+        <button class="fb-btn fb-btn-primary" type="submit">Salvar</button>
+        <a class="fb-btn fb-btn-secondary" href="{% url 'flowbot:list' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'flowbot/base.html' %}
+{% block title %}{{ bot.name }}{% endblock %}
+{% block subtitle %}Detalhes{% endblock %}
+{% block topbar_actions %}
+  <a class="fb-btn fb-btn-secondary" href="{% url 'flowbot:builder' bot.id %}">Abrir editor</a>
+  <a class="fb-btn fb-btn-ghost" href="{% url 'flowbot:media' bot.id %}">Arquivos</a>
+{% endblock %}
+{% block content %}
+  <div class="fb-card fb-card-pad fb-max-900">
+    <h2 class="fb-h2">{{ bot.name }}</h2>
+    <p class="fb-muted">{{ bot.description|default:"" }}</p>
+    <p><strong>Status:</strong> {% if bot.active %}Ativo{% else %}Pausado{% endif %}</p>
+    <p><strong>Criado:</strong> {{ bot.created_at|date:"d/m/Y H:i" }}</p>
+    <p><strong>Atualizado:</strong> {{ bot.updated_at|date:"d/m/Y H:i" }}</p>
+  </div>
+{% endblock %}

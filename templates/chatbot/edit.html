@@ -1,0 +1,530 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar {{ chatbot.name }} | Bumbbe Chat</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        :root { --bg: #F4F5FA; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); }
+        
+        /* Layout Principal */
+        .main-panel { margin-left: 280px; min-height: 100vh; padding: 2rem; }
+        @media (max-width: 991px) { .main-panel { margin-left: 0; } }
+        
+        /* Estilização das Abas */
+        .nav-tabs .nav-link { color: #666; font-size: 0.95rem; cursor: pointer; }
+        .nav-tabs .nav-link.active { 
+            border-color: #dee2e6 #dee2e6 #fff; 
+            color: #0d6efd; 
+            font-weight: 600; 
+            border-top: 3px solid #0d6efd; 
+        }
+        
+        /* Estilos de Mídia e Barra de Progresso */
+        .media-item { transition: 0.2s; }
+        .media-item:hover { background: #f8f9fa; }
+        .progress-xs { height: 8px; border-radius: 4px; }
+        
+        /* Ajustes de Inputs */
+        .form-label { font-size: 0.85rem; color: #495057; }
+    </style>
+</head>
+<body>
+    <!-- =============================================================
+         AJUDA DE PREENCHIMENTO
+         Estes textos explicam como cada campo afeta o ChatbotEngine.
+         Base: chatbot.engine.ChatbotEngine (_build_dynamic_prompt/process_message).
+         ============================================================= -->
+
+    {% include 'fillow/elements/sidebar.html' %}
+
+    <div class="main-panel">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="fw-bold d-flex align-items-center gap-2">
+                    <i class="fas fa-robot text-primary"></i> {{ chatbot.name }}
+                </h3>
+                <span class="badge bg-light text-dark border">
+                    <i class="fab fa-whatsapp text-success me-1"></i> 
+                    {% if chatbot.instance %}{{ chatbot.instance.name }}{% else %}Sem Instância{% endif %}
+                </span>
+                <span class="badge {% if chatbot.active %}bg-success{% else %}bg-secondary{% endif %} ms-2">
+                    {% if chatbot.active %}ATIVO{% else %}PAUSADO{% endif %}
+                </span>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'chatbot:delete' chatbot.id %}" class="btn btn-outline-danger btn-sm px-3" title="Excluir Bot" onclick="return confirm('Tem certeza que deseja excluir este bot permanentemente?');">
+                    <i class="fas fa-trash"></i>
+                </a>
+                <a href="{% url 'chatbot:list' %}" class="btn btn-secondary btn-sm px-3">Voltar</a>
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white pt-3 pb-0 border-bottom-0">
+                <ul class="nav nav-tabs px-2" id="botTabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" id="tab-config" data-bs-toggle="tab" data-bs-target="#config" type="button" role="tab">
+                            <i class="fas fa-cog me-2"></i>Geral
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="tab-behavior" data-bs-toggle="tab" data-bs-target="#behavior" type="button" role="tab">
+                            <i class="fas fa-sliders-h me-2"></i>Comportamento
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="tab-company" data-bs-toggle="tab" data-bs-target="#company" type="button" role="tab">
+                            <i class="fas fa-building me-2"></i>Identidade
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="tab-brain" data-bs-toggle="tab" data-bs-target="#brain" type="button" role="tab">
+                            <i class="fas fa-brain me-2"></i>Cérebro
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="tab-transfer" data-bs-toggle="tab" data-bs-target="#transfer" type="button" role="tab">
+                            <i class="fas fa-exchange-alt me-2"></i>Transferências
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="tab-media" data-bs-toggle="tab" data-bs-target="#media" type="button" role="tab">
+                            <i class="fas fa-folder-open me-2"></i>Arquivos
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" class="auto-style-form" novalidate>
+                {% csrf_token %}
+                
+                <div class="card-body p-4">
+                    <div class="tab-content" id="botTabsContent">
+                        
+                        <div class="tab-pane fade show active" id="config" role="tabpanel">
+                            <div class="row g-4">
+                                <div class="col-md-8">
+                                    <div class="bg-light p-4 rounded border mb-4">
+                                        <h6 class="fw-bold mb-3 text-uppercase small text-muted">Dados da Conexão</h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold">Nome do Assistente</label>
+                                                {{ form.name }}
+                                                <div class="form-text">Este é o nome/persona do bot. Ele aparece no prompt como: "Você é &lt;nome&gt;".</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold">Status Operacional</label>
+                                                <div class="form-check form-switch mt-2">
+                                                    {{ form.active }}
+                                                    <label class="form-check-label text-success fw-bold">Bot Ativado</label>
+                                                </div>
+                                                <div class="form-text">Se desativar, o motor (engine) ignora mensagens e não responde.</div>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label small fw-bold">Instância Vinculada</label>
+                                                {{ form.instance }}
+                                            <div class="form-text">Vincule a instância/linha do WhatsApp que receberá e enviará mensagens. Sem instância, o bot não consegue responder.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-light p-4 rounded border">
+                                        <h6 class="fw-bold mb-3 text-uppercase small text-muted">Motor de Inteligência</h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-bold">Provedor</label>
+                                                {{ form.ai_provider }}
+                                                <div class="form-text">Escolha de onde vem a resposta (OpenAI ou Gemini). O engine chama o provedor escolhido.</div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <label class="form-label small fw-bold">Modelo</label>
+                                                {{ form.model_name }}
+                                                <div class="form-text">Nome do modelo usado na chamada. Ex: <span class="font-monospace">gpt-4o</span>, <span class="font-monospace">gpt-4.1-mini</span>, <span class="font-monospace">gemini-pro</span>. Se ficar vazio, o engine usa um padrão.</div>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label small fw-bold">API Key</label>
+                                                {{ form.api_key }}
+                                                <div class="form-text">Chave do provedor escolhido. Se estiver errada, a IA falha e o bot não responde.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="card bg-white border shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-4 text-center">Monitoramento</h6>
+                                            <div class="mb-4 p-3 bg-light rounded border">
+                                                <div class="d-flex justify-content-between align-items-end mb-2">
+                                                    <span class="fw-bold small text-uppercase text-muted">Plano</span>
+                                                    {% if usage_info.limit > 999999 %}
+                                                        <span class="badge bg-success">ILIMITADO</span>
+                                                    {% else %}
+                                                        <span class="small fw-bold">{{ usage_info.percent }}%</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="progress progress-xs mb-2">
+                                                    <div class="progress-bar {% if usage_info.percent > 90 %}bg-danger{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ usage_info.percent }}%"></div>
+                                                </div>
+                                                <div class="d-flex justify-content-between small text-muted">
+                                                    <span>Usado: <strong>{{ usage_info.count }}</strong></span>
+                                                    <span>Limite: <strong>{% if usage_info.limit > 999999 %}∞{% else %}{{ usage_info.limit }}{% endif %}</strong></span>
+                                                </div>
+                                            </div>
+                                            <hr>
+                                            <div class="text-center mb-3">
+                                                <h2 class="display-6 fw-bold text-secondary mb-0">{{ chatbot.current_tokens_used|default:"0" }}</h2>
+                                                <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Tokens Consumidos</small>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Controle</label>
+                                                {{ form.token_usage_type }}
+                                                <div class="form-text">Define como o sistema controla custos/limites. O engine incrementa contadores a cada conversa e pode bloquear ao atingir o limite do plano.</div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Limite Técnico</label>
+                                                {{ form.token_limit }}
+                                                <div class="form-text">Limite técnico (teto) para uso. Ao atingir, o bot para de responder até você aumentar ou resetar conforme sua regra de plano.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 pt-3 border-top text-end">
+                                <button type="submit" name="update_bot" value="1" class="btn btn-primary px-4"><i class="fas fa-save me-2"></i>Salvar Alterações</button>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="behavior" role="tabpanel">
+                            <div class="row g-4">
+                                <div class="col-lg-6">
+                                    <div class="card h-100 border-0 bg-light">
+                                        <div class="card-body p-4">
+                                            <h6 class="fw-bold mb-4 text-primary"><i class="fas fa-filter me-2"></i>Filtros de Gatilho</h6>
+                                            <div class="d-flex align-items-center justify-content-between mb-3 bg-white p-3 rounded border">
+                                                <div><span class="fw-bold d-block">Responder em Grupos</span></div>
+                                                <div class="form-check form-switch ms-3">{{ form.trigger_on_groups }}</div>
+                                                <div class="form-text">Se desligado, o engine ignora mensagens vindas de grupos.</div>
+                                            </div>
+                                            <div class="d-flex align-items-center justify-content-between mb-3 bg-white p-3 rounded border">
+                                                <div><span class="fw-bold d-block">Responder Desconhecidos</span></div>
+                                                <div class="form-check form-switch ms-3">{{ form.trigger_on_unknown }}</div>
+                                                <div class="form-text">Quando ligado, permite responder números que nunca falaram com você. Útil para captação; cuidado para não responder spam.</div>
+                                            </div>
+                                            <div class="mb-3 bg-white p-3 rounded border">
+                                                <label class="fw-bold small mb-1">Horário de Atendimento</label>
+                                                {{ form.business_hours }}
+                                                <div class="form-text">Vai para o prompt como "Horários". Use para orientar a IA a avisar se está fora do horário e quando atender.</div>
+                                            </div>
+                                            <div class="mb-3 bg-white p-3 rounded border">
+                                                <label class="fw-bold small mb-1">Tom da Conversa</label>
+                                                {{ form.conversation_tone }}
+                                                <div class="form-text">Muda as regras de tom no prompt (formal/casual). Quanto mais "casual", mais conversa natural; "formal" mantém postura profissional.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-6">
+                                    <div class="card h-100 border-0 bg-light">
+                                        <div class="card-body p-4">
+                                            <h6 class="fw-bold mb-4 text-primary"><i class="fas fa-user-clock me-2"></i>Humanização & Mídia</h6>
+                                            <div class="mb-3 bg-white p-3 rounded border">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <span class="fw-bold">Simular Digitação</span>
+                                                    <div class="form-check form-switch">{{ form.simulate_typing }}</div>
+                                                    <div class="form-text">Se ligado, o bot envia presença de "digitando" e espera entre mínimo e máximo antes de responder.</div>
+                                                </div>
+                                                <div class="row g-2">
+                                                    <div class="col-6"><label class="small text-muted">Mín (ms)</label>{{ form.typing_time_min }}
+                                                    <div class="form-text">Tempo mínimo (em milissegundos) para simular digitação.</div></div>
+                                                    <div class="col-6"><label class="small text-muted">Máx (ms)</label>{{ form.typing_time_max }}
+                                                    <div class="form-text">Tempo máximo (em milissegundos). Se min > máx, o engine ajusta automaticamente.</div></div>
+                                                </div>
+                                            </div>
+                                            <div class="row g-2">
+                                                <div class="col-6">
+                                                    <div class="bg-white p-3 rounded border text-center">
+                                                        <small class="fw-bold d-block mb-2">Áudios</small>
+                                                        <div class="form-check form-switch d-inline-block">{{ form.allow_audio_response }}</div>
+                                                        <div class="form-text">Libera o envio de áudios quando a sua implementação de envio de voz estiver disponível (ex.: respostas em formato de voice).</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="bg-white p-3 rounded border text-center">
+                                                        <small class="fw-bold d-block mb-2">Arquivos</small>
+                                                        <div class="form-check form-switch d-inline-block">{{ form.allow_media_response }}</div>
+                                                        <div class="form-text">Permite que a IA acione envio de arquivos cadastrados (via comando <span class="font-monospace">SEND_MEDIA_ID:&lt;ID&gt;</span>).</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-3 border-top text-end">
+                                <button type="submit" name="update_bot" value="1" class="btn btn-primary px-4"><i class="fas fa-save me-2"></i>Salvar Comportamento</button>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="company" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6"><label class="form-label fw-bold small">Nome da Empresa</label>{{ form.company_name }}
+                                <div class="form-text">Vai para o prompt como a empresa onde o assistente "trabalha".</div></div>
+                                <div class="col-md-6"><label class="form-label fw-bold small">Website</label>{{ form.company_website }}
+                                <div class="form-text">Opcional. Use para a IA citar links oficiais e reforçar credibilidade.</div></div>
+                                <div class="col-md-6"><label class="form-label fw-bold small">Setor</label>{{ form.sector }}
+                                <div class="form-text">Ajuda o painel/organização. Se você também usa isso em relatórios, preencha com algo curto.</div></div>
+                                <div class="col-md-6"><label class="form-label fw-bold small">Segmento</label>{{ form.segment }}
+                                <div class="form-text">Entra no prompt como "Segmento" e ajuda a IA a ajustar linguagem e exemplos.</div></div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold small">Resumo</label>
+                                    {{ form.company_summary }}
+                                    <div class="form-text">Descreva produtos, serviços e missão.</div>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-3 border-top text-end">
+                                <button type="submit" name="update_bot" value="1" class="btn btn-primary px-4"><i class="fas fa-save me-2"></i>Salvar Identidade</button>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="brain" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label fw-bold text-primary">Contexto do Sistema</label>
+                                    <!-- O engine injeta este texto no prompt como "DADOS ESPECÍFICOS". Quanto mais objetivo, melhor. -->
+                                    {{ form.context }}
+                                    <div class="form-text">Conteúdo que vira "DADOS ESPECÍFICOS" no prompt. Ex: política de trocas, endereço, preços, FAQ, lista de serviços.</div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold text-primary">Habilidades & Instruções</label>
+                                    {{ form.skills }}
+                                    <div class="form-text">Regras de atuação (o que pode/como deve responder). Ex: "faça perguntas antes do orçamento", "use bullets curtos", "não prometa prazos".</div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold text-primary">Instruções Extras</label>
+                                    {{ form.extra_instructions }}
+                                    <div class="form-text">Instruções finais e pontuais. Ex: "Se pedirem humano, ofereça transferência", "não use emojis".</div>
+                                </div>
+                                <div class="col-12 mt-4">
+                                    <div class="card bg-light border-0">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold text-primary mb-3"><i class="fas fa-history me-2"></i>Memória</h6>
+                                            <div class="row align-items-center">
+                                                <div class="col-md-6">
+                                                    <div class="form-check form-switch">
+                                                        {{ form.use_history }}
+                                                        <label class="form-check-label fw-bold ms-2">Ativar Memória</label>
+                                                        <div class="form-text">Se ativo, o engine recupera as últimas mensagens do contato e usa como contexto para manter continuidade.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label small fw-bold">Limite (Histórico)</label>
+                                                    {{ form.history_limit }}
+                                                    <div class="form-text">Quantidade de mensagens anteriores que entram no contexto. Quanto maior, mais coerência (e maior custo).</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-3 border-top text-end">
+                                <button type="submit" name="update_bot" value="1" class="btn btn-primary px-4"><i class="fas fa-sync me-2"></i>Atualizar Inteligência</button>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="transfer" role="tabpanel">
+                            <div class="alert alert-info border small mb-4"><i class="fas fa-info-circle me-2"></i>Configure até 5 departamentos.</div>
+                            
+                            <div class="card mb-3 bg-light border-0"><div class="card-body"><div class="row g-2 align-items-center"><div class="col-auto"><div class="form-check form-switch pt-4">{{ form.transf_1_active }}
+                                <!-- Se ativado, o engine inclui este setor na lista de transferência. --></div></div><div class="col"><label class="small fw-bold">Setor 1</label>{{ form.transf_1_label }}
+                                <div class="form-text">Nome do setor que aparecerá para o cliente quando pedir humano (ex.: Vendas, Suporte, Financeiro).</div></div><div class="col"><label class="small fw-bold">WhatsApp 1</label>{{ form.transf_1_number }}
+                                <div class="form-text">WhatsApp do setor (com DDI/DDD). Ex: 5511999999999.</div></div></div></div></div>
+                            <div class="card mb-3 bg-light border-0"><div class="card-body"><div class="row g-2 align-items-center"><div class="col-auto"><div class="form-check form-switch pt-4">{{ form.transf_2_active }}
+                                <!-- Se ativado, o engine inclui este setor na lista de transferência. --></div></div><div class="col"><label class="small fw-bold">Setor 2</label>{{ form.transf_2_label }}
+                                <div class="form-text">Nome do setor que aparecerá para o cliente quando pedir humano (ex.: Vendas, Suporte, Financeiro).</div></div><div class="col"><label class="small fw-bold">WhatsApp 2</label>{{ form.transf_2_number }}
+                                <div class="form-text">WhatsApp do setor (com DDI/DDD). Ex: 5511999999999.</div></div></div></div></div>
+                            <div class="card mb-3 bg-light border-0"><div class="card-body"><div class="row g-2 align-items-center"><div class="col-auto"><div class="form-check form-switch pt-4">{{ form.transf_3_active }}
+                                <!-- Se ativado, o engine inclui este setor na lista de transferência. --></div></div><div class="col"><label class="small fw-bold">Setor 3</label>{{ form.transf_3_label }}
+                                <div class="form-text">Nome do setor que aparecerá para o cliente quando pedir humano (ex.: Vendas, Suporte, Financeiro).</div></div><div class="col"><label class="small fw-bold">WhatsApp 3</label>{{ form.transf_3_number }}
+                                <div class="form-text">WhatsApp do setor (com DDI/DDD). Ex: 5511999999999.</div></div></div></div></div>
+                            <div class="card mb-3 bg-light border-0"><div class="card-body"><div class="row g-2 align-items-center"><div class="col-auto"><div class="form-check form-switch pt-4">{{ form.transf_4_active }}
+                                <!-- Se ativado, o engine inclui este setor na lista de transferência. --></div></div><div class="col"><label class="small fw-bold">Setor 4</label>{{ form.transf_4_label }}
+                                <div class="form-text">Nome do setor que aparecerá para o cliente quando pedir humano (ex.: Vendas, Suporte, Financeiro).</div></div><div class="col"><label class="small fw-bold">WhatsApp 4</label>{{ form.transf_4_number }}
+                                <div class="form-text">WhatsApp do setor (com DDI/DDD). Ex: 5511999999999.</div></div></div></div></div>
+                            <div class="card mb-3 bg-light border-0"><div class="card-body"><div class="row g-2 align-items-center"><div class="col-auto"><div class="form-check form-switch pt-4">{{ form.transf_5_active }}
+                                <!-- Se ativado, o engine inclui este setor na lista de transferência. --></div></div><div class="col"><label class="small fw-bold">Setor 5</label>{{ form.transf_5_label }}
+                                <div class="form-text">Nome do setor que aparecerá para o cliente quando pedir humano (ex.: Vendas, Suporte, Financeiro).</div></div><div class="col"><label class="small fw-bold">WhatsApp 5</label>{{ form.transf_5_number }}
+                                <div class="form-text">WhatsApp do setor (com DDI/DDD). Ex: 5511999999999.</div></div></div></div></div>
+
+                            <div class="mt-4 pt-3 border-top text-end">
+                                <button type="submit" name="update_bot" value="1" class="btn btn-primary px-4"><i class="fas fa-save me-2"></i>Salvar Transferências</button>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="media" role="tabpanel">
+                            <div class="row">
+                                <div class="col-lg-8 border-end">
+                                    <h6 class="fw-bold mb-3 text-muted text-uppercase small">Arquivos Indexados</h6>
+                                    <div class="alert alert-warning small">Dica: quando "Arquivos" estiver ligado no Comportamento, a IA pode enviar estes itens usando o comando interno <span class="font-monospace">SEND_MEDIA_ID:&lt;ID&gt;</span>. Você não precisa escrever isso manualmente; basta cadastrar as regras de envio.</div>
+                                    
+                                    {% if medias %}
+                                        <div class="list-group list-group-flush border rounded">
+                                            {% for media in medias %}
+                                            <div class="list-group-item media-item d-flex justify-content-between align-items-center py-3">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <div class="bg-light p-3 rounded text-secondary border">
+                                                        {% if media.media_type == 'image' %}<i class="fas fa-image fa-lg"></i>
+                                                        {% elif media.media_type == 'audio' %}<i class="fas fa-microphone fa-lg"></i>
+                                                        {% elif media.media_type == 'video' %}<i class="fas fa-video fa-lg"></i>
+                                                        {% else %}<i class="fas fa-file-alt fa-lg"></i>{% endif %}
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-bold text-dark text-break" style="max-width: 350px;">{{ media.description|truncatechars:60 }}</div>
+                                                        {% if media.send_rules %}
+                                                            <div class="small text-primary mt-1"><i class="fas fa-bolt me-1"></i> Gatilho: {{ media.send_rules|truncatechars:50 }}</div>
+                                                        {% endif %}
+                                                        <div class="small text-muted font-monospace mt-1">ID: {{ media.id }} <span class="mx-1">•</span> {{ media.get_media_type_display }}</div>
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    {% if media.is_accessible_by_ai %}
+                                                        <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Visível</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Oculto</span>
+                                                    {% endif %}
+                                                    <a href="{% url 'chatbot:delete_media' media.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Excluir este arquivo?')">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center py-5 text-muted bg-light rounded border border-dashed">
+                                            <i class="fas fa-folder-open fa-3x mb-3 opacity-25"></i>
+                                            <h5>Nenhum arquivo enviado</h5>
+                                            <p class="small">A IA só pode enviar arquivos que estiverem listados aqui.</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-lg-4 ps-lg-4">
+                                    <div class="card bg-white border shadow-sm sticky-top" style="top: 20px; z-index: 1;">
+                                        <div class="card-header bg-dark text-white fw-bold">
+                                            <i class="fas fa-cloud-upload-alt me-2"></i> Upload de Arquivo
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Arquivo</label>
+                                                {{ media_form.file }}
+                                                <div class="form-text">Envie aqui o arquivo que a IA poderá mandar ao cliente (catálogo, tabela, cardápio, PDF, imagem, etc.).</div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Tipo</label>
+                                                {{ media_form.media_type }}
+                                                <div class="form-text">Define como o envio será feito (imagem/arquivo/áudio/vídeo). Para áudio, o engine usa envio de voice.</div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Descrição</label>
+                                                {{ media_form.description }}
+                                                <div class="form-text">Texto curto para identificar o arquivo no painel e também como legenda (caption) quando aplicável.</div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold text-primary">Regras de Envio</label>
+                                                {{ media_form.send_rules }}
+                                                <div class="form-text">Diga em que situação a IA deve enviar. Ex: "Quando pedir cardápio", "Quando pedir tabela de preços".</div>
+                                                <div class="form-text small" style="font-size: 0.75rem;">Quando enviar? Ex: "Ao pedir o cardápio"</div>
+                                            </div>
+                                            <div class="form-check mb-3 bg-light p-2 rounded border">
+                                                {{ media_form.is_accessible_by_ai }}
+                                                <label class="form-check-label small fw-bold ms-1" for="{{ media_form.is_accessible_by_ai.id_for_label }}">
+                                                    Disponível para a IA (se marcado, o arquivo aparece no prompt e pode ser enviado)
+                                                </label>
+                                            </div>
+
+                                            <button type="submit" name="add_media" value="1" class="btn btn-success w-100 fw-bold">
+                                                Enviar Arquivo
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // ==========================================
+            // 1. ESTILIZAÇÃO AUTOMÁTICA DOS INPUTS
+            // ==========================================
+            const forms = document.querySelectorAll('.auto-style-form');
+            forms.forEach(form => {
+                const inputs = form.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="hidden"]), select, textarea');
+                inputs.forEach(input => {
+                    if (input.tagName === 'SELECT') {
+                        input.classList.add('form-select');
+                    } else {
+                        input.classList.add('form-control');
+                    }
+                });
+                const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(chk => chk.classList.add('form-check-input'));
+            });
+
+            // ==========================================
+            // 2. PERSISTÊNCIA DAS ABAS (CACHE)
+            // ==========================================
+            // Chave única para este bot específico
+            const storageKey = 'activeTab_chatbot_{{ chatbot.id }}'; 
+            
+            // Tenta recuperar a última aba salva
+            const activeTabId = localStorage.getItem(storageKey);
+            
+            if (activeTabId) {
+                // Encontra o botão que ativa essa aba
+                const tabButton = document.querySelector(`button[data-bs-target="${activeTabId}"]`);
+                if (tabButton) {
+                    // Ativa a aba via Bootstrap API
+                    const tab = new bootstrap.Tab(tabButton);
+                    tab.show();
+                }
+            }
+
+            // Ouve cliques nas abas para salvar a escolha
+            const tabButtons = document.querySelectorAll('button[data-bs-toggle="tab"]');
+            tabButtons.forEach(btn => {
+                btn.addEventListener('shown.bs.tab', function (event) {
+                    const targetId = event.target.getAttribute('data-bs-target');
+                    localStorage.setItem(storageKey, targetId);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

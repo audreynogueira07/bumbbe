@@ -1,0 +1,63 @@
+{% extends 'fillow/elements/layouts/admin.html' %}
+{% load static %}
+        
+{% block additional_css %}
+{% endblock %}
+        
+{% block content %}
+<!--**********************************
+	Content body start
+***********************************-->
+<div class="content-body default-height">
+	<div class="container-fluid">
+		<div class="row page-titles">
+			<ol class="breadcrumb">
+				<li class="breadcrumb-item"><a href="javascript:void(0)">Plugins</a></li>
+				<li class="breadcrumb-item active"><a href="javascript:void(0)">Light Gallery</a></li>
+			</ol>
+		</div>
+		
+		<div class="row">
+			<div class="col-lg-12">
+				<div class="card">
+					<div class="card-header">
+						<h4 class="card-title">Light Gallery</h4>
+					</div>
+					<div class="card-body pb-1">
+						<div id="lightgallery" class="row">
+							<a href="{% static 'fillow/images/big/img1.jpg' %}" data-src="{% static 'fillow/images/big/img1.jpg' %}" class="lg-item col-lg-3 col-md-6 mb-4">
+								<img src="{% static 'fillow/images/big/img1.jpg' %}" class="rounded" alt="" style="width:100%;">
+							</a>
+							<a href="{% static 'fillow/images/big/img2.jpg' %}" data-src="{% static 'fillow/images/big/img2.jpg' %}" class=" lg-item col-lg-3 col-md-6 mb-4">
+								<img src="{% static 'fillow/images/big/img2.jpg' %}" class="rounded" alt="" style="width:100%;">
+							</a>
+							<a href="{% static 'fillow/images/big/img3.jpg' %}" data-src="{% static 'fillow/images/big/img3.jpg' %}" class=" lg-item col-lg-3 col-md-6 mb-4">
+								<img src="{% static 'fillow/images/big/img3.jpg' %}" class="rounded" alt="" style="width:100%;">
+							</a>
+							<a href="{% static 'fillow/images/big/img4.jpg' %}" data-src="{% static 'fillow/images/big/img4.jpg' %}" class="lg-item col-lg-3 col-md-6 mb-4">
+								<img src="{% static 'fillow/images/big/img4.jpg' %}" class="rounded" alt="" style="width:100%;">
+							</a>
+							<a href="{% static 'fillow/images/big/img5.jpg' %}" data-src="{% static 'fillow/images/big/img5.jpg' %}" class="lg-item col-lg-3 col-md-6 mb-4">
+								<img src="{% static 'fillow/images/big/img5.jpg' %}" class="rounded" alt="" style="width:100%;">
+							</a>
+							<a href="{% static 'fillow/images/big/img6.jpg' %}" data-src="{% static 'fillow/images/big/img6.jpg' %}" class="lg-item col-lg-3 col-md-6 mb-4">
+								<img src="{% static 'fillow/images/big/img6.jpg' %}" class="rounded" alt="" style="width:100%;">
+							</a>
+							<a href="{% static 'fillow/images/big/img7.jpg' %}" data-src="{% static 'fillow/images/big/img7.jpg' %}" class="lg-item col-lg-3 col-md-6 mb-4">
+								<img src="{% static 'fillow/images/big/img7.jpg' %}" class="rounded" alt="" style="width:100%;">
+							</a>
+							<a href="{% static 'fillow/images/big/img8.jpg' %}" data-src="{% static 'fillow/images/big/img8.jpg' %}" class=" lg-item col-lg-3 col-md-6 mb-4">
+								<img src="{% static 'fillow/images/big/img8.jpg' %}" class="rounded" alt="" style="width:100%;">
+							</a>
+						</div>
+					</div>
+				</div>
+				<!-- /# card -->
+			</div>
+		</div>
+	</div>
+</div>
+<!--**********************************
+	Content body end
+***********************************-->
+{% endblock %}

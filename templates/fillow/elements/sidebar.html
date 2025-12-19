@@ -1,0 +1,386 @@
+{% load static %}
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+    /* --- VARIÁVEIS DA MARCA --- */
+    :root {
+        --brand-purple: #8c52ff;
+        --brand-orange: #ff751f;
+        --brand-dark: #2e2e2e;
+        
+        --sidebar-width: 280px;
+        --sidebar-bg: #ffffff;
+        --sidebar-text: #495057;
+        --sidebar-text-hover: var(--brand-purple);
+        --sidebar-active-bg: rgba(140, 82, 255, 0.08);
+        --sidebar-border: #eceef1;
+    }
+
+    /* --- Estrutura Base --- */
+    .sidebar-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: var(--sidebar-width);
+        background: var(--sidebar-bg);
+        border-right: 1px solid var(--sidebar-border);
+        z-index: 1050;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 2px 0 10px rgba(0,0,0,0.03);
+        font-family: 'Poppins', sans-serif; 
+    }
+
+    /* --- Brand Box --- */
+    .brand-box {
+        height: 80px;
+        border-bottom: 1px solid var(--sidebar-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .brand-logo-img {
+        max-height: 45px;
+        width: auto;
+        transition: transform 0.2s;
+    }
+    .brand-logo-img:hover { transform: scale(1.05); }
+
+    /* --- Navegação --- */
+    .sidebar-menu {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 1.5rem 1rem;
+    }
+    .sidebar-menu::-webkit-scrollbar { width: 5px; }
+    .sidebar-menu::-webkit-scrollbar-thumb { background: #e9ecef; border-radius: 4px; }
+
+    .menu-header {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: #adb5bd;
+        font-weight: 700;
+        margin: 1.5rem 0 0.5rem 0.8rem;
+    }
+
+    /* Links Principais */
+    .nav-link {
+        display: flex;
+        align-items: center;
+        padding: 0.85rem 1rem;
+        color: var(--sidebar-text);
+        border-radius: 0.5rem;
+        transition: all 0.2s ease-in-out;
+        font-weight: 500;
+        font-size: 0.95rem;
+        text-decoration: none;
+        margin-bottom: 4px;
+        position: relative;
+        cursor: pointer;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+    }
+
+    .nav-link i.menu-icon {
+        width: 24px;
+        text-align: center;
+        margin-right: 12px;
+        font-size: 1.1rem;
+        color: #999;
+        transition: transform 0.2s;
+    }
+
+    .nav-link:hover {
+        background-color: #f8f9fa;
+        color: var(--sidebar-text-hover);
+        transform: translateX(2px);
+    }
+    .nav-link:hover i.menu-icon {
+        color: var(--sidebar-text-hover);
+        transform: scale(1.1);
+    }
+
+    .nav-link.active {
+        background-color: var(--sidebar-active-bg);
+        color: var(--sidebar-text-hover);
+        font-weight: 600;
+    }
+    .nav-link.active i.menu-icon { color: var(--sidebar-text-hover); }
+    .nav-link.active::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 15%; height: 70%; width: 4px;
+        background-color: var(--brand-purple);
+        border-radius: 0 4px 4px 0;
+    }
+
+    /* --- Submenu (Itens Secundários) --- */
+    .nav-link-toggle {
+        justify-content: space-between;
+    }
+    .toggle-chevron {
+        font-size: 0.8rem;
+        transition: transform 0.3s ease;
+        opacity: 0.5;
+    }
+    /* Gira a seta quando expandido (controlado via JS class 'expanded') */
+    .nav-link-toggle[aria-expanded="true"] .toggle-chevron {
+        transform: rotate(90deg);
+        opacity: 1;
+    }
+
+    .nav-submenu {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* Animação suave */
+        padding-left: 10px;
+    }
+    
+    .nav-submenu.show {
+        max-height: 500px; /* Altura máxima arbitrária suficiente para o conteúdo */
+    }
+
+    .nav-sublink {
+        display: flex;
+        align-items: center;
+        padding: 0.6rem 1rem 0.6rem 2.5rem;
+        font-size: 0.85rem;
+        color: #6c757d;
+        text-decoration: none;
+        border-radius: 0.5rem;
+        position: relative;
+    }
+    .nav-sublink:hover {
+        color: var(--brand-purple);
+        background: rgba(140, 82, 255, 0.03);
+    }
+    .nav-sublink.active {
+        color: var(--brand-purple);
+        font-weight: 600;
+        background: rgba(140, 82, 255, 0.05);
+    }
+    /* Linha conectora visual (opcional) */
+    .nav-sublink::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 50%;
+        width: 6px;
+        height: 1px;
+        background: #dee2e6;
+    }
+    .nav-sublink.active::before { background: var(--brand-purple); }
+
+
+    /* --- Badge --- */
+    .badge-soon {
+        font-size: 0.6rem;
+        padding: 2px 6px;
+        background-color: #fff0e6;
+        color: var(--brand-orange);
+        border-radius: 4px;
+        margin-left: auto;
+        font-weight: 600;
+        text-transform: uppercase;
+        border: 1px solid rgba(255, 117, 31, 0.2);
+    }
+
+    /* --- Footer --- */
+    .user-footer {
+        padding: 1rem;
+        border-top: 1px solid var(--sidebar-border);
+        background-color: #fff;
+    }
+    .user-card {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        transition: 0.2s;
+    }
+    .user-card:hover {
+        background: #fff;
+        border-color: var(--brand-purple);
+        box-shadow: 0 4px 12px rgba(140, 82, 255, 0.1);
+    }
+    .user-avatar {
+        background-color: var(--brand-dark);
+        color: white;
+        width: 36px; height: 36px;
+        font-weight: 600; flex-shrink: 0;
+    }
+
+    /* --- Mobile --- */
+    .sidebar-overlay {
+        display: none;
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(46, 46, 46, 0.6); z-index: 1040; opacity: 0; transition: opacity 0.3s;
+    }
+    .sidebar-overlay.show { opacity: 1; }
+    .mobile-toggle-btn {
+        display: none;
+        position: fixed; top: 15px; left: 15px; z-index: 1060;
+        background: #fff; border: 1px solid #dee2e6; padding: 8px 12px;
+        border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: var(--brand-dark); cursor: pointer;
+    }
+
+    @media (max-width: 991.98px) {
+        .sidebar-wrapper { transform: translateX(-100%); }
+        .sidebar-wrapper.show { transform: translateX(0); }
+        .sidebar-overlay { display: block; pointer-events: none; }
+        .sidebar-overlay.show { pointer-events: auto; }
+        .mobile-toggle-btn { display: block; }
+    }
+</style>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+<button class="mobile-toggle-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+
+<aside class="sidebar-wrapper" id="mainSidebar">
+    
+    <div class="brand-box px-4">
+        <a href="{% url 'fillow:index' %}">
+            <img src="{% static 'fillow/images/logo-full.png' %}" alt="Logo" class="brand-logo-img">
+        </a>
+    </div>
+
+    <nav class="sidebar-menu">
+        
+        <div class="menu-header">Principal</div>
+        
+        <a href="{% url 'fillow:index' %}" class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+            <i class="fas fa-chart-pie menu-icon"></i>
+            <span>Dashboard Geral</span>
+        </a>
+
+        <div class="menu-header">Canais de Atendimento</div>
+
+        <div class="nav-item-group">
+            <button class="nav-link nav-link-toggle w-100" onclick="toggleSubmenu('submenu-whatsapp', this)" aria-expanded="{% if 'chatbot' in request.resolver_match.app_names or 'flowbot' in request.resolver_match.app_names or request.resolver_match.url_name == 'api-v1' %}true{% else %}false{% endif %}">
+                <div class="d-flex align-items-center">
+                    <i class="fab fa-whatsapp menu-icon"></i>
+                    <span>WhatsApp</span>
+                </div>
+                <i class="fas fa-chevron-right toggle-chevron"></i>
+            </button>
+            
+            <div id="submenu-whatsapp" class="nav-submenu {% if 'chatbot' in request.resolver_match.app_names or 'flowbot' in request.resolver_match.app_names or request.resolver_match.url_name == 'api-v1' %}show{% endif %}">
+                <a href="{% url 'fillow:api-v1' %}" class="nav-sublink {% if request.resolver_match.url_name == 'api-v1' %}active{% endif %}">
+                    Conexões & API
+                </a>
+                
+                <a href="{% url 'chatbot:list' %}" class="nav-sublink {% if request.resolver_match.app_names == 'chatbot' and 'contacts' not in request.resolver_match.url_name %}active{% endif %}">
+                    Chat IA
+                </a>
+
+                <a href="{% url 'flowbot:list' %}" class="nav-sublink {% if 'flowbot' in request.resolver_match.app_names %}active{% endif %}">
+                    Chat Offline
+                </a>
+
+                <a href="{% url 'chatbot:contacts' %}" class="nav-sublink {% if 'contacts' in request.resolver_match.url_name %}active{% endif %}">
+                    CRM & Contatos
+                </a>
+            </div>
+        </div>
+
+        <div class="nav-item-group mt-1">
+            <button class="nav-link nav-link-toggle w-100" onclick="toggleSubmenu('submenu-wordpress', this)" aria-expanded="{% if 'wpbot' in request.resolver_match.app_names %}true{% else %}false{% endif %}">
+                <div class="d-flex align-items-center">
+                    <i class="fab fa-wordpress menu-icon"></i>
+                    <span>Site / Web</span>
+                </div>
+                <i class="fas fa-chevron-right toggle-chevron"></i>
+            </button>
+            
+            <div id="submenu-wordpress" class="nav-submenu {% if 'wpbot' in request.resolver_match.app_names %}show{% endif %}">
+                <a href="{% url 'wpbot:list' %}" class="nav-sublink {% if 'wpbot' in request.resolver_match.app_names and 'leads' not in request.resolver_match.url_name %}active{% endif %}">
+                    Bots do Site
+                </a>
+                <a href="{% url 'wpbot:leads' %}" class="nav-sublink {% if 'leads' in request.resolver_match.url_name %}active{% endif %}">
+                    Leads Capturados
+                </a>
+            </div>
+        </div>
+
+        <div class="menu-header">Gestão</div>
+
+        <a href="#" class="nav-link text-muted" style="opacity: 0.7;">
+            <i class="far fa-calendar-check menu-icon"></i>
+            <span>Agendamentos</span>
+            <span class="badge-soon">Em Breve</span>
+        </a>
+
+        <a href="#" class="nav-link text-muted" style="opacity: 0.7;">
+            <i class="fas fa-file-invoice-dollar menu-icon"></i>
+            <span>Financeiro</span>
+            <span class="badge-soon">Em Breve</span>
+        </a>
+
+        <div class="menu-header">Suporte</div>
+
+        <a href="{% url 'fillow:docs' %}" class="nav-link {% if request.resolver_match.url_name == 'docs' %}active{% endif %}">
+            <i class="fas fa-code menu-icon"></i>
+            <span>Documentação</span>
+        </a>
+    </nav>
+
+    <div class="user-footer">
+        <div class="user-card d-flex align-items-center p-2 rounded">
+            <div class="user-avatar rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm">
+                {{ request.user.username|make_list|first|upper }}
+            </div>
+            
+            <div style="flex-grow: 1; overflow: hidden; min-width: 0;">
+                <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem;">
+                    {{ request.user.first_name|default:request.user.username }}
+                </div>
+                <div class="small text-muted text-truncate" style="font-size: 0.7rem;">
+                    {% if request.user.is_superuser %}Admin{% else %}Plano Pro{% endif %}
+                </div>
+            </div>
+
+            <a href="{% url 'fillow:logout' %}" class="btn btn-sm btn-logout ms-1" title="Sair">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        </div>
+    </div>
+</aside>
+
+<script>
+    // Toggle Sidebar Mobile
+    function toggleSidebar() {
+        document.getElementById('mainSidebar').classList.toggle('show');
+        document.getElementById('sidebarOverlay').classList.toggle('show');
+    }
+
+    // Toggle Submenu (Accordion)
+    function toggleSubmenu(id, btn) {
+        const submenu = document.getElementById(id);
+        const isExpanded = btn.getAttribute('aria-expanded') === 'true';
+        
+        // Toggle visual state
+        if (isExpanded) {
+            submenu.classList.remove('show');
+            btn.setAttribute('aria-expanded', 'false');
+        } else {
+            submenu.classList.add('show');
+            btn.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    // Fechar sidebar ao clicar em link (mobile)
+    document.querySelectorAll('.nav-link:not(.nav-link-toggle), .nav-sublink').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth < 992) toggleSidebar();
+        });
+    });
+</script>

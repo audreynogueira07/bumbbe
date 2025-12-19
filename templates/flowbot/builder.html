@@ -1,0 +1,235 @@
+{% extends 'flowbot/base.html' %}
+{% load static %}
+{% block title %}Editor{% endblock %}
+{% block subtitle %}{{ bot.name }}{% endblock %}
+{% block head_extra %}
+  {#
+    Caso exista um CSS original do construtor, ele será carregado. Abaixo adicionamos
+    ajustes visuais para distribuir o canvas, a paleta e as propriedades de forma
+    harmoniosa usando flexbox. Estes estilos complementam o tema definido em
+    base.html e melhoram a usabilidade do editor de fluxos.
+  #}
+  <link rel="stylesheet" href="{% static 'flowbot/css/flowbuilder.css' %}">
+  <style>
+    /* Layout principal do construtor: paleta, canvas e propriedades em linha */
+    .fb-builder {
+      display: flex;
+      gap: 1.5rem;
+      align-items: stretch;
+    }
+    /* Paleta de blocos */
+    .fb-palette {
+      width: 260px;
+      background: #ffffff;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 220px);
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    .fb-palette-head {
+      margin-bottom: 1rem;
+    }
+    .fb-palette-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .fb-palette-foot {
+      font-size: 0.8rem;
+      color: #666;
+      padding-top: 0.5rem;
+    }
+    /* Área do canvas e chat */
+    .fb-canvas-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      min-width: 0;
+    }
+    .fb-canvas-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .fb-toolbar-left button,
+    .fb-toolbar-right button {
+      margin-right: 0.25rem;
+    }
+    .fb-icbtn {
+      border: none;
+      background: #f0f0f0;
+      border-radius: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      cursor: pointer;
+    }
+    .fb-icbtn:hover {
+      background: #e6e6e6;
+    }
+    .fb-canvas {
+      flex: 1;
+      position: relative;
+      background: #fafafa;
+      border: 1px dashed #d8d8d8;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      overflow: auto;
+      min-height: 400px;
+    }
+    .fb-wires {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .fb-chat-sim {
+      background: #ffffff;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      padding: 1rem;
+    }
+    .fb-chat-head {
+      margin-bottom: 0.5rem;
+    }
+    .fb-chat-log {
+      height: 200px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+      border: 1px solid #e6e6e6;
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      background: #f9f9f9;
+      font-size: 0.875rem;
+    }
+    .fb-chat-input {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .fb-chat-input input[type="text"] {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid #cccccc;
+      border-radius: 0.375rem;
+      font-size: 0.9rem;
+    }
+    .fb-props {
+      width: 260px;
+      background: #ffffff;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 220px);
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    .fb-props-head {
+      margin-bottom: 1rem;
+    }
+    .fb-props-body {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .fb-props-foot {
+      padding-top: 0.75rem;
+    }
+  </style>
+{% endblock %}
+{% block topbar_actions %}
+  <a class="fb-btn fb-btn-ghost" href="{% url 'flowbot:media' bot.id %}">Arquivos</a>
+  <button class="fb-btn fb-btn-secondary" id="btnSave">Salvar</button>
+{% endblock %}
+
+{% block content %}
+  <div class="fb-builder">
+
+    <aside class="fb-palette">
+      <div class="fb-palette-head">
+        <div class="fb-h3">Blocos</div>
+        <div class="fb-muted">Arraste para o canvas</div>
+      </div>
+
+      <div id="paletteList" class="fb-palette-list"></div>
+
+      <div class="fb-palette-foot">
+        <div class="fb-muted">
+          {#
+            Para exibir literalmente {{ variavel }} dentro do template Django,
+            use "templatetag" ao invés de tentar montar chaves com strings.
+            Isso evita TemplateSyntaxError.
+          #}
+          Dica: {% templatetag openvariable %}variavel{% templatetag closevariable %} e {% templatetag openvariable %}last_user_text{% templatetag closevariable %} funcionam no texto.
+        </div>
+      </div>
+    </aside>
+
+    <section class="fb-canvas-wrap">
+      <div class="fb-canvas-toolbar">
+        <div class="fb-toolbar-left">
+          <button class="fb-icbtn" id="btnZoomIn" title="Zoom +">+</button>
+          <button class="fb-icbtn" id="btnZoomOut" title="Zoom -">−</button>
+          <button class="fb-icbtn" id="btnCenter" title="Centralizar">◎</button>
+        </div>
+        <div class="fb-toolbar-right">
+          <button class="fb-btn fb-btn-ghost" id="btnResetChat">Reset chat</button>
+          <button class="fb-btn fb-btn-primary" id="btnStartChat">Iniciar chat</button>
+        </div>
+      </div>
+
+      <div id="canvas" class="fb-canvas" tabindex="0">
+        <svg id="wires" class="fb-wires" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div id="nodesLayer" class="fb-nodes-layer"></div>
+      </div>
+
+      <div class="fb-chat-sim">
+        <div class="fb-chat-head">
+          <strong>Simulador</strong>
+          <span class="fb-muted">Teste o fluxo aqui</span>
+        </div>
+        <div id="chatLog" class="fb-chat-log"></div>
+        <div class="fb-chat-input">
+          <input id="chatText" type="text" placeholder="Digite como cliente..." />
+          <button class="fb-btn fb-btn-primary" id="btnSendChat">Enviar</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="fb-props">
+      <div class="fb-props-head">
+        <div class="fb-h3">Propriedades</div>
+        <div id="selectedLabel" class="fb-muted">Selecione um nó</div>
+      </div>
+
+      <div id="propsBody" class="fb-props-body">
+        <div class="fb-muted">Nada selecionado.</div>
+      </div>
+
+      <div class="fb-props-foot">
+        <button class="fb-btn fb-btn-danger" id="btnDeleteNode" disabled>Excluir nó</button>
+      </div>
+    </aside>
+
+  </div>
+
+  <script>
+    window.FLOWBOT = {
+      botId: {{ bot.id }},
+      nodeLibrary: {{ node_library_json|safe }},
+      urls: {
+        getFlow: "{% url 'flowbot:api_get_flow' bot.id %}",
+        saveFlow: "{% url 'flowbot:api_save_flow' bot.id %}",
+        mediaList: "{% url 'flowbot:api_media_list' bot.id %}",
+        chatStart: "{% url 'flowbot:api_chat_start' bot.id %}",
+        chatSend: "{% url 'flowbot:api_chat_send' bot.id %}",
+        chatReset: "{% url 'flowbot:api_chat_reset' bot.id %}"
+      }
+    };
+  </script>
+  <script src="{% static 'flowbot/js/flowbuilder.js' %}"></script>
+{% endblock %}

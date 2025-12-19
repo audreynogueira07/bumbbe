@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório Mensal - ZIN Intelligence</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Chart.js Datalabels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #525252;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            color: #1f2937;
+        }
+
+        /* Configuração A4 */
+        .page-a4 {
+            background-color: white;
+            width: 210mm;
+            height: 297mm; /* Altura fixa A4 */
+            padding: 15mm;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            position: relative;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kpi-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+        }
+
+        /* Estilos de Impressão */
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+                margin: 0;
+            }
+            .page-a4 {
+                width: 100%;
+                height: 100%;
+                box-shadow: none;
+                padding: 10mm;
+                margin: 0;
+                border: none;
+            }
+            .no-print { display: none !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Botão Flutuante -->
+    <div class="fixed top-5 right-5 no-print z-50">
+        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded shadow-lg flex items-center gap-2 transition-all">
+            <i class="fa-solid fa-print"></i> Imprimir
+        </button>
+    </div>
+
+    <div class="page-a4">
+        
+        <!-- Cabeçalho -->
+        <header class="flex justify-between items-end border-b-2 border-slate-800 pb-4 mb-8">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-slate-900 text-white flex items-center justify-center rounded-lg text-2xl shadow-sm">
+                    <i class="fa-solid fa-chart-pie"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 uppercase tracking-tight">Relatório de Uso</h1>
+                    <p class="text-sm text-slate-500 font-medium">Análise Quantitativa</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="bg-slate-100 px-3 py-1 rounded text-sm font-bold text-slate-700 mb-1 border border-slate-200">
+                    08 NOV - 08 DEZ 2025
+                </div>
+                <p class="text-[10px] text-slate-400">Fonte: Logs de Auditoria do Sistema</p>
+            </div>
+        </header>
+
+        <!-- KPIs Principais -->
+        <section class="grid grid-cols-3 gap-6 mb-8 h-32">
+            <!-- Interações Totais -->
+            <div class="kpi-card border-t-4 border-t-blue-600 shadow-sm">
+                <div class="text-blue-600 mb-1 text-2xl"><i class="fa-solid fa-comments"></i></div>
+                <h3 class="text-4xl font-bold text-slate-800">415</h3>
+                <p class="text-xs font-bold text-slate-500 uppercase mt-1">Interações no Período</p>
+            </div>
+            
+            <!-- Usuários Totais -->
+            <div class="kpi-card border-t-4 border-t-emerald-500 shadow-sm">
+                <div class="text-emerald-500 mb-1 text-2xl"><i class="fa-solid fa-users"></i></div>
+                <h3 class="text-4xl font-bold text-slate-800">15</h3>
+                <p class="text-xs font-bold text-slate-500 uppercase mt-1">Usuários Totais</p>
+                <p class="text-[10px] text-slate-400">(Base Cadastrada)</p>
+            </div>
+
+            <!-- Sessões -->
+            <div class="kpi-card border-t-4 border-t-indigo-500 shadow-sm">
+                <div class="text-indigo-500 mb-1 text-2xl"><i class="fa-solid fa-laptop-code"></i></div>
+                <h3 class="text-4xl font-bold text-slate-800">152</h3>
+                <p class="text-xs font-bold text-slate-500 uppercase mt-1">Sessões Realizadas</p>
+            </div>
+        </section>
+
+        <!-- Área de Gráficos -->
+        <div class="flex-1 flex flex-col gap-8">
+            
+            <!-- Gráfico 1: Distribuição por Tipo -->
+            <div class="border border-slate-200 rounded-xl p-6 flex-1 flex flex-col shadow-sm">
+                <h3 class="text-base font-bold text-slate-700 mb-4 flex items-center gap-2 border-b border-slate-100 pb-2">
+                    <i class="fa-solid fa-chart-column text-indigo-600"></i> Volume por Tipo de Demanda (08/11 - 08/12)
+                </h3>
+                <div class="relative flex-1 w-full min-h-[180px]">
+                    <canvas id="searchTypeChart"></canvas>
+                </div>
+                <div class="mt-4 text-xs text-slate-400 text-center italic">
+                    Representa o total de ações executadas no período selecionado.
+                </div>
+            </div>
+
+            <!-- Gráfico 2: Distribuição por Critério -->
+            <div class="border border-slate-200 rounded-xl p-6 flex-1 flex flex-col shadow-sm">
+                <h3 class="text-base font-bold text-slate-700 mb-4 flex items-center gap-2 border-b border-slate-100 pb-2">
+                    <i class="fa-solid fa-filter text-emerald-600"></i> Detalhamento: Critérios de Busca de Pessoas
+                </h3>
+                <div class="relative flex-1 w-full min-h-[180px]">
+                    <canvas id="personCriteriaChart"></canvas>
+                </div>
+                <div class="mt-4 text-xs text-slate-400 text-center italic">
+                    Segmentação das buscas onde o objeto principal foi uma Pessoa Física.
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-auto pt-6 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400">
+            <p>ZIN Intelligence • Relatório Gerencial</p>
+            <p>Período de Referência: 08/11/2025 a 08/12/2025</p>
+        </footer>
+    </div>
+
+    <script>
+        // Configurações Globais do Chart.js
+        Chart.register(ChartDataLabels);
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.color = '#64748b';
+
+        // 1. Gráfico de Barras (Volume por Tipo)
+        const ctxType = document.getElementById('searchTypeChart').getContext('2d');
+        new Chart(ctxType, {
+            type: 'bar',
+            data: {
+                labels: ['Busca de Pessoas', 'Busca de Alertas', 'Outros/Menu'],
+                datasets: [
+                    {
+                        label: 'Volume de Ações',
+                        data: [302, 78, 35], // Total consolidado do período
+                        backgroundColor: [
+                            '#3b82f6', // Azul para principal
+                            '#64748b', // Cinza para secundário
+                            '#94a3b8'  // Cinza claro para outros
+                        ],
+                        borderRadius: 6,
+                        barPercentage: 0.5,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }, // Legenda desnecessária para série única explicada no eixo
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        color: '#475569',
+                        font: { weight: 'bold', size: 11 },
+                        formatter: (value) => value
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        grid: { borderDash: [2, 4], color: '#f1f5f9' },
+                        title: { display: true, text: 'Quantidade' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // 2. Gráfico Horizontal (Critérios) - Melhor para leitura de categorias
+        const ctxCriteria = document.getElementById('personCriteriaChart').getContext('2d');
+        new Chart(ctxCriteria, {
+            type: 'bar', // Bar chart vertical (ou mude indexAxis para 'y' se quiser horizontal)
+            data: {
+                labels: ['Nome Completo', 'Documento (RG/CPF)', 'Alcunha/Apelido'],
+                datasets: [
+                    {
+                        label: 'Buscas Realizadas',
+                        data: [142, 105, 55], // Total consolidado do período
+                        backgroundColor: '#10b981', // Verde Emerald unificado
+                        borderRadius: 6,
+                        barPercentage: 0.5,
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y', // Transforma em gráfico de barras horizontais
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'end', // Joga o numero para o lado da barra
+                        color: '#475569',
+                        font: { weight: 'bold', size: 11 },
+                        formatter: (value) => value
+                    }
+                },
+                scales: {
+                    x: { 
+                        beginAtZero: true,
+                        grid: { borderDash: [2, 4], color: '#f1f5f9' }
+                    },
+                    y: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

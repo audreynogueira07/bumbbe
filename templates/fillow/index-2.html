@@ -1,0 +1,700 @@
+{% extends 'fillow/elements/layouts/admin.html' %}
+{% load static %}
+
+{% block additional_css %}
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+    /* --- Bumbbe Chat THEME OVERRIDES --- */
+    :root {
+        --Bumbbe Chat-neon-blue: #00f3ff;
+        --Bumbbe Chat-neon-purple: #bc13fe;
+        --Bumbbe Chat-dark-bg: #0a0a12;
+        --Bumbbe Chat-card-bg: rgba(20, 20, 30, 0.7);
+        --Bumbbe Chat-text-main: #e0e0e0;
+    }
+
+    body {
+        font-family: 'Rajdhani', sans-serif !important;
+        background-color: var(--Bumbbe Chat-dark-bg) !important;
+        color: var(--Bumbbe Chat-text-main) !important;
+        overflow-x: hidden;
+    }
+
+    /* Background Parallax Container */
+    .Bumbbe Chat-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 110%;
+        height: 110%;
+        background: url('https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop') no-repeat center center;
+        background-size: cover;
+        z-index: -1;
+        filter: brightness(0.3) contrast(1.2);
+        transition: transform 0.1s ease-out;
+        margin-left: -5%;
+        margin-top: -5%;
+    }
+
+    /* Grid Overlay Effect */
+    .Bumbbe Chat-grid-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+            linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+            linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+        background-size: 100% 2px, 3px 100%;
+        z-index: -1;
+        pointer-events: none;
+    }
+
+    /* Glassmorphism Cards */
+    .card {
+        background: var(--Bumbbe Chat-card-bg) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        border-radius: 12px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px 0 rgba(0, 243, 255, 0.15);
+        border-color: rgba(0, 243, 255, 0.3);
+    }
+
+    /* Typography */
+    h1, h2, h3, h4, h5, h6, .card-title {
+        font-family: 'Orbitron', sans-serif;
+        color: var(--Bumbbe Chat-neon-blue) !important;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    p, span, .text-black, .text-gray {
+        color: #b0b0b0 !important;
+    }
+
+    .text-black.font-w600 {
+        color: #fff !important;
+    }
+
+    /* Buttons */
+    .btn-primary, .btn-rounded {
+        background: linear-gradient(45deg, var(--Bumbbe Chat-neon-blue), #0066ff) !important;
+        border: none;
+        color: #000 !important;
+        font-weight: bold;
+        font-family: 'Orbitron', sans-serif;
+        box-shadow: 0 0 10px var(--Bumbbe Chat-neon-blue);
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover, .btn-rounded:hover {
+        box-shadow: 0 0 20px var(--Bumbbe Chat-neon-blue);
+        transform: scale(1.05);
+    }
+
+    .btn-outline-primary {
+        border-color: var(--Bumbbe Chat-neon-blue) !important;
+        color: var(--Bumbbe Chat-neon-blue) !important;
+    }
+    
+    .btn-outline-primary:hover {
+        background: var(--Bumbbe Chat-neon-blue) !important;
+        color: #000 !important;
+    }
+
+    /* Progress Bars */
+    .progress {
+        background-color: rgba(255,255,255,0.1) !important;
+    }
+    .progress-bar {
+        background: linear-gradient(90deg, var(--Bumbbe Chat-neon-purple), var(--Bumbbe Chat-neon-blue)) !important;
+        box-shadow: 0 0 10px var(--Bumbbe Chat-neon-purple);
+    }
+
+    /* SVG Icons Colors */
+    svg circle {
+        fill: rgba(255,255,255,0.2) !important;
+    }
+    .active svg circle, svg path {
+        fill: var(--Bumbbe Chat-neon-blue) !important;
+    }
+
+    /* Header Special */
+    .tryal-gradient {
+        background: linear-gradient(135deg, rgba(0, 243, 255, 0.1) 0%, rgba(188, 19, 254, 0.1) 100%) !important;
+        border: 1px solid var(--Bumbbe Chat-neon-blue);
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .col-xl-6, .col-xl-12 {
+        animation: fadeInUp 0.8s ease-out forwards;
+        opacity: 0; /* Start hidden */
+    }
+
+    .col-xl-6:nth-child(1) { animation-delay: 0.1s; }
+    .col-xl-6:nth-child(2) { animation-delay: 0.2s; }
+    .col-xl-12:nth-child(1) { animation-delay: 0.3s; }
+    .col-xl-12:nth-child(2) { animation-delay: 0.4s; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #0a0a12; 
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #333; 
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--Bumbbe Chat-neon-blue); 
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Parallax Background Elements -->
+<div class="Bumbbe Chat-background" id="parallaxBg"></div>
+<div class="Bumbbe Chat-grid-overlay"></div>
+
+<!--**********************************
+    Content body start
+***********************************-->
+<div class="content-body default-height">
+    <!-- row -->
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-xl-12">
+                <div class="row">
+                    <!-- Left Column -->
+                    <div class="col-xl-6">
+                        <div class="row">
+                            <div class="col-xl-12">
+                                <div class="card tryal-gradient">
+                                    <div class="card-body tryal row">
+                                        <div class="col-xl-7 col-sm-7">
+                                            <h2 class="mb-2">Bumbbe Chat INTELLIGENCE SYSTEM</h2>
+                                            <span class="fs-16">System Status: <span style="color: #00ff00 !important;">ONLINE</span>. Threat Detection Algorithms Active.</span>
+                                            <div class="mt-3">
+                                                <a href="javascript:void(0);" class="btn btn-rounded btn-sm">Initiate Scan</a>
+                                            </div>
+                                        </div>
+                                        <div class="col-xl-5 col-sm-5 text-end">
+                                            <!-- Icone abstrato de dados -->
+                                            <i class="fas fa-network-wired fa-5x" style="color: var(--Bumbbe Chat-neon-blue); opacity: 0.8;"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Statistics Card -->
+                            <div class="col-xl-12">
+                                <div class="card">
+                                    <div class="card-header border-0 pb-0 flex-wrap">
+                                        <h4 class="card-title">Network Statistics</h4>
+                                        <div class="d-flex align-items-center mt-3 project-tab">    
+                                            <div class="card-tabs mt-sm-0 me-3">
+                                                <ul class="nav nav-tabs" role="tablist">
+                                                    <li class="nav-item">
+                                                        <a class="nav-link active" data-bs-toggle="tab" href="#monthly" role="tab">Monthly</a>
+                                                    </li>
+                                                    <li class="nav-item">
+                                                        <a class="nav-link" data-bs-toggle="tab" href="#today" role="tab">Today</a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>  
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                            <div class="d-flex">
+                                                <div class="d-inline-block position-relative donut-chart-sale mb-3">
+                                                    <span class="donut1" data-peity='{ "fill": ["#00f3ff", "rgba(255, 255, 255, 0.1)"],   "innerRadius": 20, "radius": 15}'>5/8</span>
+                                                </div>
+                                                <div class="ms-3">
+                                                    <h4 class="fs-24 mb-0">246</h4>
+                                                    <p class="mb-0">Monitored Targets</p>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex">    
+                                                <div class="d-flex me-5">
+                                                    <div class="mt-2">
+                                                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <circle cx="6.5" cy="6.5" r="6.5" fill="#00ff00"/>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="ms-3">
+                                                        <h4 class="fs-24 mb-0 ">218</h4>
+                                                        <p class="mb-0">Active</p>
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex">
+                                                    <div class="mt-2">
+                                                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <circle cx="6.5" cy="6.5" r="6.5" fill="#ff0000"/>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="ms-3">
+                                                        <h4 class="fs-24 mb-0">28</h4>
+                                                        <p class="mb-0">Offline</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div id="chartBar" class="chartBar"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Map Card -->
+                            <div class="col-xl-12">
+                                <div class="card">
+                                    <div class="card-header border-0 pb-0">
+                                        <h4 class="card-title mb-0">Global Threat Heatmap</h4>
+                                    </div>
+                                    <div class="card-body pb-0">
+                                        <div id="revenueMap" class="revenueMap"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Logs / Emails -->
+                            <div class="col-xl-12">
+                                <div class="card">
+                                    <div class="card-header pb-0 border-0">
+                                        <div>
+                                            <h4 class="card-title">Recent System Intercepts</h4>
+                                            <p class="mb-0">Encrypted logs received</p>
+                                        </div>
+                                    </div>
+                                    <div class="card-body px-0 pt-2">
+                                        <div class="d-flex justify-content-between recent-emails">
+                                            <div class="d-flex">
+                                                <div class="profile-k">
+                                                    <span class="bg-primary"><i class="fas fa-terminal"></i></span> 
+                                                </div>
+                                                <div class="ms-3">
+                                                    <a href="{% url 'fillow:email-inbox' %}"> <h4 class="fs-18 font-w500">Security Protocol Update v4.2</h4></a>
+                                                    <P class="text-black mb-0">Core system patches applied successfully. Firewall integrity at 99%...</P>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-between recent-emails">
+                                            <div class="d-flex">
+                                                <div class="profile-k">
+                                                    <img src="{% static 'fillow/images/profile/small/pic6.jpg' %}" alt="">
+                                                </div>
+                                                <div class="ms-3">
+                                                    <a href="{% url 'fillow:email-inbox' %}"><h4 class="fs-18 font-w500">Target Acquisition Report</h4></a>
+                                                    <P class="text-black mb-0">Surveillance drone #402 has acquired visual on subject...</P>
+                                                    <div class="final-badge">
+                                                        <span class="badge border bgl-primary font-w700 text-white">CONFIDENTIAL</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-between recent-emails">
+                                            <div class="d-flex">
+                                                <div class="profile-k">
+                                                    <span class="bg-warning"><i class="fas fa-exclamation-triangle"></i></span> 
+                                                </div>
+                                                <div class="ms-3">
+                                                    <a href="{% url 'fillow:email-inbox' %}"><h4 class="fs-18 font-w500">Unauthorized Access Attempt</h4></a>
+                                                    <P class="text-black mb-0">IP 192.168.X.X blocked. Geo-tracing initiated...</P>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="col-xl-6">
+                        <div class="row">
+                            <div class="col-xl-12">
+                                <div class="row">
+                                    <!-- Stats Mini Cards -->
+                                    <div class="col-xl-6 col-sm-6">
+                                        <div class="card">
+                                            <div class="card-body card-padding d-flex align-items-center justify-content-between">
+                                                <div>
+                                                    <h4 class="mb-3 text-nowrap">Active Agents</h4>
+                                                    <div class="d-flex align-items-center">
+                                                        <h2 class="fs-32 font-w700 mb-0 counter">68</h2>
+                                                        <div class="ms-4 d-flex align-items-center">
+                                                            <strong class="text-success">+2</strong>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div id="columnChart"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xl-6 col-sm-6">
+                                        <div class="card">
+                                            <div class="card-body card-padding d-flex align-items-center justify-content-between">
+                                                <div class="w-75">
+                                                    <h4 class="mb-3 text-nowrap">Server Load</h4>
+                                                    <div class="progress default-progress">
+                                                        <div class="progress-bar bg-gradient1 progress-animated" style="width: 40%; height:8px;" role="progressbar">
+                                                            <span class="sr-only">40% Load</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mt-2">
+                                                        <p class="mb-0"><strong class="text-success me-2">Stable</strong></p>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <h2 class="fs-32 font-w700 mb-0">40%</h2>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xl-6 col-sm-6">
+                                        <div class="card">
+                                            <div class="card-body d-flex px-4 justify-content-between">
+                                                <div>
+                                                    <div class="">
+                                                        <h2 class="fs-32 font-w700 counter">562</h2>
+                                                        <h4 class="mb-0 text-nowrap">Data Packets</h4>
+                                                        <p class="mb-0"><strong class="text-danger">-2%</strong> bandwidth</p>
+                                                    </div>
+                                                </div>
+                                                <div id="NewCustomers"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xl-6 col-sm-6">
+                                        <div class="card">
+                                            <div class="card-body d-flex px-4 justify-content-between">
+                                                <div>
+                                                    <div class="">
+                                                        <h2 class="fs-32 font-w700 counter">892</h2>
+                                                        <h4 class="mb-0 text-nowrap">New Incidents</h4>
+                                                        <p class="mb-0"><strong class="text-success">+2%</strong> vs avg</p>
+                                                    </div>
+                                                </div>
+                                                <div id="NewCustomers1"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Carousel -->
+                            <div class="col-xl-12">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-xl-6 col-sm-6">
+                                                <div class="owl-carousel card-slider">
+                                                    <div class="items">
+                                                        <h4 class="card-title mb-4">Operation: Blackout</h4>
+                                                        <span class="fs-14 font-w400 text-black">Covert operation detecting unauthorized signals in Sector 7. Team dispatched for recon.</span>
+                                                    </div>  
+                                                    <div class="items">
+                                                        <h4 class="fs-20 font-w700 mb-4">Project: Deep Mind</h4>
+                                                        <span class="fs-14 font-w400 text-black">AI Neural network training phase 3. Anomaly detection efficiency increased by 15%.</span>
+                                                    </div>  
+                                                </div>
+                                            </div>
+                                            <div class="col-xl-6 redial col-sm-6 align-self-center">
+                                                <div id="redial"></div>
+                                                <span class="text-center d-block fs-18 font-w600">Mission Status <small class="text-success">70%</small></span> 
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Data Categories Chart -->
+                            <div class="col-xl-12 col-lg-12">
+                                <div class="row">
+                                    <div class="col-xl-6 col-xxl-12 col-sm-6">
+                                        <div class="card">
+                                            <div class="card-header border-0 pb-0">
+                                                <div>
+                                                    <h4 class="card-title">Data Streams</h4>
+                                                    <p class="mb-0">Traffic Analysis</p>
+                                                </div>  
+                                            </div>  
+                                            <div class="card-body pb-0">
+                                                <div id="emailchart"> </div>
+                                                <div class="mb-3 mt-4">
+                                                    <h4>Sources</h4>
+                                                </div>
+                                                <div class="email-lagend">
+                                                    <div class="d-flex align-items-center justify-content-between mb-3">
+                                                        <span class="fs-16 text-gray"> 
+                                                            <i class="fas fa-circle me-2" style="color: #886CC0;"></i>
+                                                            Satellites (27%)
+                                                        </span>
+                                                        <h5 class="mb-0 font-w600">763 GB</h5>
+                                                    </div>
+                                                    <div class="d-flex align-items-center justify-content-between mb-3">
+                                                        <span class="fs-16 text-gray"> 
+                                                            <i class="fas fa-circle me-2" style="color: #26E023;"></i>
+                                                            Ground Sensors (11%)
+                                                        </span>
+                                                        <h5 class="mb-0 font-w600">321 GB</h5>
+                                                    </div>
+                                                    <div class="d-flex align-items-center justify-content-between mb-3">
+                                                        <span class="fs-16 text-gray"> 
+                                                            <i class="fas fa-circle me-2" style="color: #61CFF1;"></i>
+                                                            Drones (22%)
+                                                        </span>
+                                                        <h5 class="mb-0 font-w600">69 GB</h5>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="card-footer border-0 pt-0">
+                                                <a href="javascript:void(0);" class="btn btn-outline-primary btn-rounded d-block">Refresh Stream</a>     
+                                            </div>
+                                        </div>
+                                    </div>  
+                                    
+                                    <!-- Priority Tasks -->
+                                    <div class="col-xl-6 col-xxl-12 col-sm-6">
+                                        <div class="card">
+                                            <div class="card-header border-0 pb-0">
+                                                <div>
+                                                    <h4 class="card-title">Priority Targets</h4>
+                                                    <p class="mb-0">High Value Assets</p>
+                                                </div>
+                                            </div>
+                                            <div class="card-body pb-0 pt-3">
+                                                <div class="project-details"> 
+                                                    <div class="d-flex align-items-center justify-content-between">
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="big-wind">
+                                                                <i class="fas fa-radar fa-2x text-warning"></i>
+                                                            </div>
+                                                            <div class="ms-3">
+                                                                <h5 class="mb-1">Operation: Big Wind</h5>
+                                                                <p class="mb-0">Surveillance</p>
+                                                            </div>
+                                                        </div>  
+                                                    </div>
+                                                    <h5 class="mt-3">Code Decryption - Level 5</h5>
+                                                    <div class="projects">
+                                                        <span class="badge badge-warning light me-3">CRITICAL</span>
+                                                        <span class="badge badge-danger light">INTEL</span>
+                                                    </div>
+                                                    <div class="mt-3">
+                                                        <div class="progress default-progress">
+                                                            <div class="progress-bar bg-gradient1 progress-animated" style="width: 45%; height:5px;" role="progressbar">
+                                                                <span class="sr-only">45% Complete</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="d-flex align-items-end mt-3 justify-content-between">
+                                                            <p class="mb-0"><strong class="text-white me-2">12</strong>Nodes Cracked</p>
+                                                            <p class="mb-0">ETA: 12h</p>
+                                                        </div>
+                                                    </div>
+                                                </div>  
+                                                <hr style="background: rgba(255,255,255,0.1);">
+                                                <div class="project-details"> 
+                                                    <div class="d-flex align-items-center justify-content-between">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="big-wind">
+                                                                <i class="fas fa-satellite-dish fa-2x text-info"></i>
+                                                            </span>
+                                                            <div class="ms-3">
+                                                                <h5 class="mb-1">Circle Hunt</h5>
+                                                                <p class="mb-0">Tracking</p>
+                                                            </div>
+                                                        </div>  
+                                                    </div>
+                                                    <h5 class="mt-3">Signal Triangulation</h5>
+                                                    <div class="projects">
+                                                        <span class="badge badge-primary light me-3">SIGNAL</span>
+                                                        <span class="badge badge-danger light">LIVE</span>
+                                                    </div>
+                                                    <div class="mt-3">
+                                                        <div class="progress default-progress">
+                                                            <div class="progress-bar bg-gradient1 progress-animated" style="width: 85%; height:5px;" role="progressbar">
+                                                                <span class="sr-only">85% Complete</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="d-flex align-items-end mt-3 justify-content-between">
+                                                            <p class="mb-0"><strong class="text-white me-2">3</strong>Satellites Locked</p>
+                                                            <p class="mb-0">ETA: 5m</p>
+                                                        </div>
+                                                    </div>
+                                                </div>  
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>  
+                            </div>
+
+                            <!-- Messages -->
+                            <div class="col-xl-12 col-lg-12">
+                                <div class="card">
+                                    <div class="card-header pb-0 border-0">
+                                        <div>
+                                            <h4 class="card-title">Encrypted Comms</h4>
+                                            <p class="mb-0">Internal Channel</p>
+                                        </div>
+                                        <div>
+                                            <a href="javascript:void(0);" class="btn btn-primary btn-rounded" data-bs-toggle="modal" data-bs-target="#sendMessageModal" >+ New Msg</a>
+                                        </div>
+                                    </div>
+                                    <div class="card-body px-0 pt-0">
+                                        <div class="msg-bx d-flex justify-content-between align-items-center">
+                                            <div class="msg d-flex align-items-center w-100">
+                                                <div class="image-box active">
+                                                    <img src="{% static 'fillow/images/profile/small/pic6.jpg' %}" alt="">
+                                                </div>
+                                                <div class="ms-3 w-100 ">
+                                                    <h5 class="mb-1">Agent Rosser</h5>
+                                                    <div class="d-flex justify-content-between">
+                                                        <p class="me-auto mb-0 text-black">Server cache cleared. Ready for reboot.</p>
+                                                        <small class="me-4">25min ago</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="msg-bx d-flex justify-content-between align-items-center">
+                                            <div class="msg d-flex align-items-center w-100">
+                                                <div class="image-box">
+                                                    <img src="{% static 'fillow/images/profile/small/pic7.jpg' %}" alt="">
+                                                </div>  
+                                                <div class="ms-3 w-100">
+                                                    <h5 class="mb-1">Agent Bergson</h5>
+                                                    <div class="d-flex justify-content-between">
+                                                        <p class="me-auto mb-0 text-black">Intel received. Analyzing patterns now.</p>
+                                                        <small class="me-4">Yesterday, 08:24</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="msg-bx d-flex justify-content-between align-items-center">
+                                            <div class="msg d-flex align-items-center w-100">
+                                                <div class="image-box active">
+                                                    <img src="{% static 'fillow/images/profile/small/pic4.jpg' %}" alt="">
+                                                </div>  
+                                                <div class="ms-3 w-100">
+                                                    <h5 class="mb-1">Tech Lead Press</h5>
+                                                    <div class="d-flex justify-content-between">
+                                                        <p class="me-auto mb-0 text-black">Patch 5.0 deploying in T-minus 1 hour.</p>
+                                                        <small class="me-4">12/12/2020 10:24</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!--**********************************
+    Content body end
+***********************************-->
+
+<!-- Modal -->
+<div class="modal fade" id="sendMessageModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content" style="background: #1a1a2e; border: 1px solid var(--Bumbbe Chat-neon-blue);">
+            <div class="modal-header">
+                <h5 class="modal-title">Secure Transmission</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form class="comment-form">
+                    <div class="row"> 
+                        <div class="col-lg-6">
+                            <div class="mb-3">
+                                <label class="text-white font-w600 form-label required">Codename </label>
+                                <input type="text" class="form-control" placeholder="Agent Name" style="background: rgba(255,255,255,0.1); color: white; border: none;">
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="mb-3">
+                                <label class="text-white font-w600 form-label">Secure ID </label>
+                                <input type="text" class="form-control" placeholder="ID" style="background: rgba(255,255,255,0.1); color: white; border: none;">
+                            </div>
+                        </div>
+                        <div class="col-lg-12">
+                            <div class="mb-3">
+                                <label class="text-white font-w600 form-label">Message</label>
+                                <textarea rows="8" class="form-control" placeholder="Enter encrypted message..." style="background: rgba(255,255,255,0.1); color: white; border: none;"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-lg-12">
+                            <div class="mb-3 mb-0">
+                                <input type="submit" value="Transmit" class="submit btn btn-primary w-100">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block additional_js %}
+<script>
+    function cardsCenter()
+    {
+        /* testimonial one function by = owl.carousel.js */
+        jQuery('.card-slider').owlCarousel({
+            loop:true,
+            margin:0,
+            nav:true,
+            slideSpeed: 3000,
+            paginationSpeed: 3000,
+            dots: true,
+            navText: ['<i class="fas fa-arrow-left"></i>', '<i class="fas fa-arrow-right"></i>'],
+            responsive:{
+                0:{ items:1 },
+                576:{ items:1 },  
+                800:{ items:1 },            
+                991:{ items:1 },
+                1200:{ items:1 },
+                1600:{ items:1 }
+            }
+        })
+    }
+    
+    jQuery(window).on('load',function(){
+        setTimeout(function(){
+            cardsCenter();
+        }, 1000); 
+    });
+
+    // --- Bumbbe Chat Parallax Logic ---
+    document.addEventListener("mousemove", function(e) {
+        const bg = document.getElementById('parallaxBg');
+        if(bg) {
+            const x = (window.innerWidth - e.pageX*2) / 100;
+            const y = (window.innerHeight - e.pageY*2) / 100;
+            bg.style.transform = `translate(${x}px, ${y}px) scale(1.1)`;
+        }
+    });
+</script>
+{% endblock %}

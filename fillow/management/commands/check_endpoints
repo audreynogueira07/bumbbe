@@ -1,0 +1,101 @@
+import logging
+import requests
+import json
+from django.core.management.base import BaseCommand
+from django.urls import reverse
+from django.conf import settings
+from fillow.models import Instance
+
+class Command(BaseCommand):
+    help = 'Testa a disponibilidade dos Endpoints da API (Health Check)'
+
+    def handle(self, *args, **kwargs):
+        # Defina a URL base do seu sistema local ou produção
+        BASE_URL = getattr(settings, 'BASE_URL', 'http://127.0.0.1:8000')
+        
+        # Tenta pegar um token de qualquer instância ativa para testes autenticados (opcional)
+        instance = Instance.objects.filter(status='CONNECTED').first()
+        token = instance.token if instance else "token_de_teste_dummy"
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+        self.stdout.write(f"--- Iniciando Teste de Endpoints em {BASE_URL} ---")
+        self.stdout.write(f"Usando token de teste: {token[:10]}...")
+
+        # Lista de Endpoints para testar (Nome da rota no urls.py, Método, Payload Opcional)
+        endpoints_to_test = [
+            # --- API PÚBLICA V1 (urls.py) ---
+            {
+                'name': 'fillow:v1_send_message', 
+                'method': 'POST', 
+                'data': {'to': '5511999999999', 'message': 'ping'}
+            },
+            {
+                'name': 'fillow:v1_groups_list', 
+                'method': 'GET'
+            },
+            {
+                'name': 'fillow:v1_profile_info', 
+                'method': 'GET',
+                'kwargs': {'jid': '5511999999999@s.whatsapp.net'} # Precisa do parametro na URL
+            },
+            
+            # --- API INTERNA (urls.py) ---
+            {
+                'name': 'fillow:api_v1', # Dashboard API V1
+                'method': 'GET'
+            },
+             {
+                'name': 'fillow:docs', # Documentação
+                'method': 'GET'
+            },
+        ]
+
+        success_count = 0
+        fail_count = 0
+
+        for item in endpoints_to_test:
+            try:
+                # 1. Resolve a URL reversa baseada no nome da rota (urls.py)
+                if 'kwargs' in item:
+                    path = reverse(item['name'], kwargs=item['kwargs'])
+                else:
+                    path = reverse(item['name'])
+                
+                full_url = f"{BASE_URL}{path}"
+                method = item['method']
+
+                # 2. Executa a requisição
+                if method == 'GET':
+                    response = requests.get(full_url, headers=headers, timeout=5)
+                elif method == 'POST':
+                    response = requests.post(full_url, headers=headers, json=item.get('data', {}), timeout=5)
+
+                status = response.status_code
+
+                # 3. Análise de Resultado
+                # Consideramos SUCESSO se o servidor respondeu, mesmo que seja 400 (Bad Request) ou 401/403 (Auth).
+                # Consideramos FALHA se for 500 (Erro de Servidor/Código quebrado) ou 404 (Rota sumiu).
+                
+                if 200 <= status < 500:
+                    self.stdout.write(self.style.SUCCESS(f"[OK] {status} | {method} {path}"))
+                    success_count += 1
+                else:
+                    self.stdout.write(self.style.ERROR(f"[FALHA] {status} | {method} {path} - {response.text[:50]}"))
+                    fail_count += 1
+
+            except requests.exceptions.ConnectionError:
+                self.stdout.write(self.style.ERROR(f"[OFFLINE] Não foi possível conectar em {BASE_URL}"))
+                fail_count += 1
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"[ERRO SCRIPT] Falha ao testar {item.get('name')}: {e}"))
+                fail_count += 1
+
+        self.stdout.write("------------------------------------------------")
+        if fail_count == 0:
+            self.stdout.write(self.style.SUCCESS(f"CONCLUSÃO: Todos os {success_count} endpoints estão respondendo."))
+        else:
+            self.stdout.write(self.style.ERROR(f"CONCLUSÃO: {fail_count} endpoints com problemas."))

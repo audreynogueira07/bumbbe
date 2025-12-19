@@ -1,0 +1,57 @@
+{% extends 'flowbot/base.html' %}
+{% block title %}Arquivos{% endblock %}
+{% block subtitle %}{{ bot.name }}{% endblock %}
+{% block topbar_actions %}
+  <a class="fb-btn fb-btn-secondary" href="{% url 'flowbot:builder' bot.id %}">Voltar ao editor</a>
+{% endblock %}
+{% block content %}
+  <div class="fb-grid-2">
+    <div class="fb-card fb-card-pad">
+      <h2 class="fb-h2">Adicionar arquivo</h2>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="fb-field">
+          <label>Arquivo</label>
+          {{ form.file }}
+        </div>
+        <div class="fb-field">
+          <label>Tipo</label>
+          {{ form.media_type }}
+        </div>
+        <div class="fb-field">
+          <label>Título (opcional)</label>
+          {{ form.title }}
+        </div>
+        <div class="fb-field">
+          <label>Legenda/Descrição</label>
+          {{ form.caption }}
+        </div>
+        {% if form.errors %}
+          <div class="fb-alert fb-alert-danger">Erros: {{ form.errors }}</div>
+        {% endif %}
+        <button class="fb-btn fb-btn-primary" type="submit">Enviar</button>
+      </form>
+    </div>
+
+    <div class="fb-card fb-card-pad">
+      <h2 class="fb-h2">Seus arquivos</h2>
+      <div class="fb-media-list">
+        {% for m in medias %}
+          <div class="fb-media-item">
+            <div class="fb-media-main">
+              <div class="fb-media-title"><strong>{{ m.title|default:m.file.name }}</strong> <span class="fb-pill">{{ m.media_type }}</span></div>
+              <div class="fb-muted">{{ m.caption|default:"" }}</div>
+              <a class="fb-link" href="{{ m.file.url }}" target="_blank">Abrir arquivo</a>
+            </div>
+            <form method="post" action="{% url 'flowbot:media_delete' m.id %}">
+              {% csrf_token %}
+              <button class="fb-btn fb-btn-danger" type="submit">Excluir</button>
+            </form>
+          </div>
+        {% empty %}
+          <div class="fb-muted">Nenhum arquivo ainda.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

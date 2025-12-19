@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WhatsApp REST API Documentation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    h1, h2, h3 {
+      color: #2c3e50;
+    }
+    code {
+      background: #f5f5f5;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.95rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 0.6rem;
+      text-align: left;
+    }
+    th {
+      background: #f0f0f0;
+    }
+    .citation {
+      font-size: 0.8rem;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>WhatsApp REST API using Baileys</h1>
+  <p>
+    This document describes a <strong>professional‑grade REST and WebSocket API</strong>
+    built on top of the
+    <a href="https://github.com/whiskeysockets/baileys">Baileys</a> library. The API
+    allows backends (for example Django or Node.js systems) to send and receive
+    WhatsApp messages, manage groups and contacts, and receive real‑time
+    notifications via webhooks. It provides session persistence, connection
+    health monitoring, configurable security and extensive logging.
+  </p>
+
+  <h2>Overview</h2>
+  <p>
+    Baileys is an unofficial library that uses the WhatsApp Web protocol to
+    provide programmatic access to WhatsApp. It communicates over WebSockets
+    and supports most user‑facing features (sending and receiving messages,
+    media, groups, etc.). Because WhatsApp is a closed platform, the library
+    can break when WhatsApp changes its protocols. Use it responsibly and avoid
+    spamming users. The official WhatsApp Business API should be used for
+    high‑volume commercial messaging.
+  </p>
+  <p>
+    When creating a socket Baileys recommends using your own authentication
+    state and persisting it to disk or a database【657296751753228†L48-L52】. This API
+    stores each session’s credentials under an <code>auth/{sessionId}</code>
+    directory. On startup the server scans this directory and automatically
+    recreates sessions, meaning you don’t have to scan a new QR code after a
+    restart. The library documentation also warns against forcing your socket
+    to use the latest WhatsApp version every time you connect – doing so may
+    cause incompatibilities【657296751753228†L84-L88】. Therefore this API uses
+    Baileys’ recommended version obtained via
+    <code>fetchLatestBaileysVersion()</code>.
+  </p>
+
+  <h2>Connection Reliability</h2>
+  <p>
+    WebSocket connections may be dropped by proxies or firewalls if they remain
+    idle. The WebSocket specification defines Ping and Pong control frames that
+    enable heartbeat checks. Either endpoint can send a Ping and the recipient
+    should respond with a Pong to confirm the connection is still alive【773971297008535†L118-L124】.
+    The server in this API sends a Ping to each connected client every 30
+    seconds and terminates connections that do not respond, preventing zombie
+    connections and memory leaks. Baileys itself monitors its connection to
+    WhatsApp and automatically reconnects on transient disconnects.
+  </p>
+
+  <h2>Security</h2>
+  <p>
+    The API exposes HTTP endpoints and a WebSocket upgrade on the same port.
+    You can protect the API with an API key by setting the
+    <code>API_KEY</code> environment variable. Clients must send this key in
+    the <code>x-api-key</code> header with every HTTP request. Requests
+    missing or containing the wrong key receive a 401 response. CORS headers
+    allow any origin by default; adjust them to restrict origins in
+    production. Note that browser WebSocket clients cannot set arbitrary HTTP
+    headers during the handshake, so API key authentication applies to the
+    HTTP API only. If you expose the WebSocket to browsers, ensure you
+    validate the <code>Origin</code> header or perform post‑handshake
+    authentication as recommended in WebSocket security guides【773971297008535†L193-L241】.
+  </p>
+
+  <h2>Webhooks</h2>
+  <p>
+    Each session can be configured with a webhook URL. When a webhook is set
+    the server performs an HTTP POST request for the following events:
+  </p>
+  <ul>
+    <li><strong>message-received</strong> – Fired whenever a new message arrives. The
+      payload matches the JSON returned by <code>/sessions/:sessionId/messages</code>
+      and contains metadata such as sender, message type, timestamp and any
+      extracted text.</li>
+    <li><strong>message-sent</strong> – Fired when your API sends a message via
+      <code>/messages/send</code>, <code>/messages/send-media</code> or
+      <code>/messages/broadcast</code>.</li>
+    <li><strong>connection-update</strong> – Fired on connection open and close
+      events. The payload includes a <code>status</code> field (<code>open</code>
+      or <code>close</code>) and, for close events, a <code>reason</code> code.
+    </li>
+  </ul>
+  <p>
+    Webhook calls are performed asynchronously using the built‑in
+    <code>fetch</code> API. Failures are logged but do not block message
+    processing. Make sure your webhook endpoint responds quickly (within a few
+    seconds) to avoid backpressure.
+  </p>
+
+  <h2>Anti‑Spam Best Practices</h2>
+  <p>
+    WhatsApp has systems in place to detect abuse. The following guidelines are
+    recommended when using Baileys【64040941999036†L189-L199】:
+  </p>
+  <ul>
+    <li>Do not send mass unsolicited messages.</li>
+    <li>Always allow users to opt‑in to communications.</li>
+    <li>Include clear identification (e.g. your business name).</li>
+    <li>Avoid sending the exact same message repeatedly.</li>
+    <li>Add delays (ideally randomised) between message batches.</li>
+    <li>Never use Baileys to mimic the official WhatsApp Business API at scale.</li>
+  </ul>
+  <p>
+    If you need high‑throughput messaging or official approval from WhatsApp, use
+    the <a href="https://www.whatsapp.com/business/api">WhatsApp Business API</a>
+    instead.【64040941999036†L201-L202】
+  </p>
+
+  <h2>Endpoints</h2>
+  <p>
+    All endpoints are prefixed by the server’s base URL (for example
+    <code>http://localhost:3001</code>). Replace <code>:sessionId</code> with the
+    appropriate session identifier returned by <code>/sessions/start</code> or
+    listed by <code>/sessions</code>.
+  </p>
+
+  <h3>Session management</h3>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td>POST</td><td><code>/sessions/start</code></td><td>Create a new
+      session. Accepts JSON body <code>{"sessionId": "my‑session"}</code> and
+      returns a message indicating where to fetch the QR code.</td></tr>
+    <tr><td>GET</td><td><code>/sessions</code></td><td>List all sessions with
+      their readiness state, configured webhook and number of stored messages.</td></tr>
+    <tr><td>GET</td><td><code>/sessions/:sessionId/qr</code></td><td>Retrieve the
+      QR code for an unconnected session. Returns a data‑URI. Once the
+      connection is established this endpoint reports that the session is
+      connected.</td></tr>
+    <tr><td>GET</td><td><code>/sessions/:sessionId/status</code></td><td>Get
+      connection status, current QR code (if any) and webhook URL for a
+      session.</td></tr>
+    <tr><td>DELETE</td><td><code>/sessions/:sessionId</code></td><td>Terminate a
+      session and remove its credentials. Requires API key if configured.</td></tr>
+  </table>
+
+  <h3>Webhook configuration</h3>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td>POST</td><td><code>/sessions/:sessionId/webhook</code></td><td>Set or
+      update the webhook URL. Accepts JSON body <code>{"url": "https://..."}</code>.</td></tr>
+  </table>
+
+  <h3>Messaging</h3>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td>POST</td><td><code>/:sessionId/messages/send</code></td><td>Send a
+      text message. Body: <code>{"to": "number", "message": "Hello"}</code>.
+      Records the message in history and triggers a <code>message-sent</code>
+      webhook.</td></tr>
+    <tr><td>POST</td><td><code>/:sessionId/messages/send-media</code></td><td>Send
+      media (image, video, audio or document). Use multipart/form-data with a
+      <code>file</code> field. Additional <code>caption</code> is optional.
+      Records the outgoing message in history and triggers a
+      <code>message-sent</code> webhook.</td></tr>
+    <tr><td>POST</td><td><code>/:sessionId/messages/broadcast</code></td><td>Send a
+      text message to multiple recipients. Body:
+      <code>{"recipients": ["12345", "67890"], "message": "Hi"}</code>.</td></tr>
+    <tr><td>GET</td><td><code>/:sessionId/messages</code></td><td>Retrieve the
+      message history stored in memory for a session. Each entry includes
+      metadata such as sender JID, message type and timestamp.</td></tr>
+  </table>
+
+  <h3>User utilities</h3>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td>GET</td><td><code>/:sessionId/users/:jid/exists</code></td><td>Check
+      if a number is registered on WhatsApp. Returns <code>{"exists":
+      true|false, "jid": "..."}</code>.</td></tr>
+    <tr><td>GET</td><td><code>/:sessionId/users/:jid/avatar</code></td><td>Fetch
+      the profile picture URL for a given JID.</td></tr>
+    <tr><td>POST</td><td><code>/:sessionId/users/presence</code></td><td>Update
+      your presence (e.g. "available", "unavailable", "typing"). Body:
+      <code>{"to": "jid", "presence": "typing"}</code>.</td></tr>
+  </table>
+
+  <h3>Group management</h3>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td>POST</td><td><code>/:sessionId/groups/create</code></td><td>Create a
+      group with a subject and a list of participants. Body:
+      <code>{"subject": "My Group", "participants": ["12345", "67890"]}</code>.</td></tr>
+    <tr><td>GET</td><td><code>/:sessionId/groups/:groupId/metadata</code></td><td>Get
+      metadata for a group.</td></tr>
+    <tr><td>POST</td><td><code>/:sessionId/groups/:groupId/participants</code></td><td>
+      Modify participants. Body:
+      <code>{"action": "add|remove|promote|demote", "participants": ["jid1"]}</code>.</td></tr>
+    <tr><td>PUT</td><td><code>/:sessionId/groups/:groupId/subject</code></td><td>
+      Update the group’s subject. Body: <code>{"subject": "New name"}</code>.</td></tr>
+    <tr><td>POST</td><td><code>/:sessionId/groups/:groupId/leave</code></td><td>Leave a
+      group.</td></tr>
+    <tr><td>GET</td><td><code>/:sessionId/groups</code></td><td>List all groups
+      the account is participating in. Internally this uses
+      <code>groupFetchAllParticipating()</code>【64040941999036†L150-L154】.</td></tr>
+  </table>
+
+  <h2>WebSocket API</h2>
+  <p>
+    The server also exposes a WebSocket endpoint at the same host and port. To
+    connect from a browser or WebSocket client use
+    <code>ws://hostname:port</code>. Upon connecting the server creates a
+    temporary session and returns a JSON message containing a
+    <code>sessionId</code>. Scan the QR code sent via the WebSocket to
+    authenticate. When the connection is established the WebSocket will emit
+    <code>new-message</code> events for each incoming message and log lines
+    describing internal events. The WebSocket heartbeat ensures idle
+    connections do not leak resources【773971297008535†L118-L124】.
+  </p>
+
+  <h2>Persistence</h2>
+  <p>
+    All authentication data is stored under <code>auth/{sessionId}</code>.
+    Credentials are updated whenever Baileys fires a <code>creds.update</code>
+    event. On server startup the API scans this directory and re‑initialises
+    any existing sessions. If a connection is intentionally closed (e.g. via
+    <code>DELETE /sessions/:sessionId</code>) the corresponding auth folder is
+    removed.
+  </p>
+
+  <h2>Extending the API</h2>
+  <p>
+    This project is designed to be extensible. You can add new endpoints
+    exposing additional Baileys capabilities, such as status message retrieval,
+    profile updates or message deletion. See the Baileys API reference for a
+    complete list of available methods. If you wish to cache group metadata to
+    reduce rate limits the Baileys documentation suggests providing a
+    <code>cachedGroupMetadata</code> callback【657296751753228†L109-L121】.
+  </p>
+
+  <p class="citation">
+    Citations: Baileys configuration guidance【657296751753228†L48-L52】【657296751753228†L84-L88】,
+    WebSocket heartbeat explanation【773971297008535†L118-L124】, group enumeration example【64040941999036†L150-L154】,
+    anti‑spam best practices【64040941999036†L189-L199】.
+  </p>
+</body>
+</html>
+
+
+npm install @whiskeysockets/baileys@6.7.21
+npm install helmet cors express-rate-limit

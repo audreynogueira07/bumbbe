@@ -1,0 +1,117 @@
+{% extends "adsmanager/base.html" %}
+{% block title %}Editar Conta | Bumbbe Ads{% endblock %}
+{% block subtitle %}Integrações{% endblock %}
+{% block header_title %}Editar Conta{% endblock %}
+
+{% block header_actions %}
+    <a href="{% url 'adsmanager:accounts' %}" class="btn btn-outline-secondary btn-lg">
+        <i class="fas fa-arrow-left me-2"></i>Voltar
+    </a>
+{% endblock %}
+
+{% block content %}
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="bb-card">
+            <div class="bb-header">
+                <div class="fw-bold">Configurações da conta</div>
+                <div class="text-muted small">Controle limites e atualize credenciais.</div>
+            </div>
+            <div class="bb-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger border-0 shadow-sm">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Nome</label>
+                            {{ form.name.as_widget(attrs={"class":"form-control"}) }}
+                            {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Moeda</label>
+                            {{ form.currency_code.as_widget(attrs={"class":"form-control"}) }}
+                            {% if form.currency_code.errors %}<div class="text-danger small mt-1">{{ form.currency_code.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">ID na plataforma</label>
+                            {{ form.platform_account_id.as_widget(attrs={"class":"form-control", "placeholder":"Ex.: 1234567890"}) }}
+                            {% if form.platform_account_id.errors %}<div class="text-danger small mt-1">{{ form.platform_account_id.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Unidade mínima (minor unit)</label>
+                            {{ form.currency_minor_unit.as_widget(attrs={"class":"form-control"}) }}
+                            {% if form.currency_minor_unit.errors %}<div class="text-danger small mt-1">{{ form.currency_minor_unit.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="fw-bold mb-2">Limites de gasto (micros)</div>
+                    <div class="text-muted small mb-3">Deixe em branco para não aplicar teto no app.</div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Teto diário</label>
+                            {{ form.spend_cap_daily_micros.as_widget(attrs={"class":"form-control", "placeholder":"Ex.: 5000000"}) }}
+                            {% if form.spend_cap_daily_micros.errors %}<div class="text-danger small mt-1">{{ form.spend_cap_daily_micros.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Teto mensal</label>
+                            {{ form.spend_cap_monthly_micros.as_widget(attrs={"class":"form-control", "placeholder":"Ex.: 100000000"}) }}
+                            {% if form.spend_cap_monthly_micros.errors %}<div class="text-danger small mt-1">{{ form.spend_cap_monthly_micros.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="fw-bold mb-2">Credenciais (JSON)</div>
+                    <div class="text-muted small mb-3">Atualize se o token/refresh token mudar.</div>
+
+                    <div class="mb-3">
+                        {{ form.credentials_json.as_widget(attrs={
+                            "class":"form-control",
+                            "rows":"10",
+                            "style":"font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"
+                        }) }}
+                        {% if form.credentials_json.errors %}<div class="text-danger small mt-1">{{ form.credentials_json.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="form-check form-switch mb-4">
+                        {{ form.active.as_widget(attrs={"class":"form-check-input"}) }}
+                        <label class="form-check-label fw-semibold">Conta ativa</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-purple btn-lg">
+                        <i class="fas fa-save me-2"></i>Salvar alterações
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="helper-card p-4">
+            <div class="fw-bold mb-2"><i class="fas fa-shield-halved me-2"></i>Dica de orçamento baixo</div>
+            <div class="text-muted small">
+                Para campanhas com poucos reais:
+                <ul class="mt-2 mb-0">
+                    <li>Evite mexer toda hora. Ajuste 1x por dia no máximo.</li>
+                    <li>Comece com segmentação simples e criativo forte.</li>
+                    <li>Use teto diário para não “vazar” orçamento.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

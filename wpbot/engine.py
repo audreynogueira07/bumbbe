@@ -20,8 +20,9 @@ class WordpressBotEngine:
     def __init__(self, bot):
         self.bot = bot
 
-    def process_input(self, session_uuid, user_message, user_name=None, user_phone=None):
+    def process_input(self, session_uuid, user_message, user_name=None, user_phone=None, user_email=None, meta=None):
         """
+        meta = meta or {}
         Processa a entrada do usuário e retorna um dicionário com a resposta.
         """
         # 1. Identificar ou Criar Contato
@@ -36,6 +37,8 @@ class WordpressBotEngine:
             if contact.input_state == 1: contact.input_state = 2 # Pula etapa nome
         if user_phone:
             contact.phone = user_phone
+        if user_email:
+            contact.email = user_email
             if contact.input_state == 2: contact.input_state = 0 # Cadastro completo
 
         # Salva a mensagem do usuário no histórico
@@ -43,7 +46,8 @@ class WordpressBotEngine:
             WordpressMessage.objects.create(
                 contact=contact,
                 sender='user',
-                content=user_message
+                content=user_message,  # <-- CORRIGIDO: Adicionada vírgula
+                meta=meta,
             )
 
         # 2. Lógica de Captura de Dados (Se não tiver cadastro completo)
@@ -80,7 +84,8 @@ class WordpressBotEngine:
         bot_msg = WordpressMessage.objects.create(
             contact=contact,
             sender='bot',
-            content=response_text
+            content=response_text, # <-- CORRIGIDO: Adicionada vírgula
+            meta=meta,
         )
 
         # 4. Verificar Mídia na Resposta

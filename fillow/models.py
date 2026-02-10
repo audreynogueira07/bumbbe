@@ -365,3 +365,341 @@ def auto_delete_file_on_change(sender, instance, **kwargs):
                 os.remove(old_file.path)
             except Exception as e:
                 print(f"Erro ao deletar arquivo antigo: {e}")
+                
+# =========================
+# DISPARADOR / CAMPANHAS
+# =========================
+
+class DispatchMessageTemplate(models.Model):
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="dispatch_message_templates",
+    )
+    name = models.CharField(max_length=120)
+    body = models.TextField(blank=True, help_text='Você pode usar {nome} para personalização.')
+    media_file = models.ForeignKey(
+        "MediaFile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dispatch_templates",
+    )
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "name"],
+                name="uniq_dispatch_template_name_per_owner",
+            )
+        ]
+
+    def clean(self):
+        if not self.body and not self.media_file:
+            raise ValidationError("Informe um texto ou anexe uma mídia no template.")
+
+    def __str__(self):
+        return f"{self.name} ({self.owner})"
+
+
+class DispatchContactGroup(models.Model):
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="dispatch_contact_groups",
+    )
+    name = models.CharField(max_length=120)
+    description = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "name"],
+                name="uniq_dispatch_group_name_per_owner",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.owner})"
+
+
+class DispatchContact(models.Model):
+    group = models.ForeignKey(
+        "DispatchContactGroup",
+        on_delete=models.CASCADE,
+        related_name="contacts",
+    )
+    phone_number = models.CharField(max_length=30)
+    jid = models.CharField(max_length=80, db_index=True)
+    display_name = models.CharField(max_length=120, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["display_name", "phone_number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["group", "jid"],
+                name="uniq_dispatch_contact_per_group",
+            )
+        ]
+
+    def __str__(self):
+        return self.display_name or self.phone_number or self.jid
+
+
+class DispatchCampaign(models.Model):
+    STATUS_DRAFT = "DRAFT"
+    STATUS_SCHEDULED = "SCHEDULED"
+    STATUS_RUNNING = "RUNNING"
+    STATUS_PAUSED = "PAUSED"
+    STATUS_COMPLETED = "COMPLETED"
+    STATUS_CANCELED = "CANCELED"
+    STATUS_FAILED = "FAILED"
+
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, "Rascunho"),
+        (STATUS_SCHEDULED, "Agendada"),
+        (STATUS_RUNNING, "Em execução"),
+        (STATUS_PAUSED, "Pausada"),
+        (STATUS_COMPLETED, "Concluída"),
+        (STATUS_CANCELED, "Cancelada"),
+        (STATUS_FAILED, "Falha"),
+    ]
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="dispatch_campaigns",
+    )
+    instance = models.ForeignKey(
+        "Instance",
+        on_delete=models.CASCADE,
+        related_name="dispatch_campaigns",
+    )
+
+    name = models.CharField(max_length=150)
+    start_at = models.DateTimeField(default=timezone.now)
+
+    min_delay_seconds = models.PositiveIntegerField(default=20)
+    max_delay_seconds = models.PositiveIntegerField(default=45)
+
+    messages_per_recipient = models.PositiveIntegerField(default=1)
+    use_name_placeholder = models.BooleanField(default=True)
+
+    raw_numbers = models.TextField(
+        blank=True,
+        help_text="Números separados por vírgula/linha (aceita também JID).",
+    )
+
+    groups = models.ManyToManyField(
+        "DispatchContactGroup",
+        related_name="campaigns",
+        blank=True,
+    )
+    templates = models.ManyToManyField(
+        "DispatchMessageTemplate",
+        related_name="campaigns",
+        blank=True,
+    )
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+
+    total_recipients = models.PositiveIntegerField(default=0)
+    total_planned = models.PositiveIntegerField(default=0)
+    total_sent = models.PositiveIntegerField(default=0)
+    total_failed = models.PositiveIntegerField(default=0)
+    total_delivered = models.PositiveIntegerField(default=0)
+    total_read = models.PositiveIntegerField(default=0)
+
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["owner", "status"]),
+            models.Index(fields=["instance", "status"]),
+            models.Index(fields=["start_at"]),
+        ]
+
+    def clean(self):
+        if self.max_delay_seconds < self.min_delay_seconds:
+            raise ValidationError("max_delay_seconds não pode ser menor que min_delay_seconds.")
+        if self.messages_per_recipient < 1:
+            raise ValidationError("messages_per_recipient deve ser >= 1.")
+
+    def __str__(self):
+        return f"{self.name} [{self.get_status_display()}]"
+
+
+class DispatchCampaignRecipient(models.Model):
+    SOURCE_INLINE = "INLINE"
+    SOURCE_GROUP = "GROUP"
+
+    SOURCE_CHOICES = [
+        (SOURCE_INLINE, "Lista avulsa"),
+        (SOURCE_GROUP, "Grupo"),
+    ]
+
+    campaign = models.ForeignKey(
+        "DispatchCampaign",
+        on_delete=models.CASCADE,
+        related_name="recipients",
+    )
+    jid = models.CharField(max_length=80, db_index=True)
+    phone_number = models.CharField(max_length=30)
+    display_name = models.CharField(max_length=120, blank=True)
+
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default=SOURCE_INLINE)
+    source_group = models.ForeignKey(
+        "DispatchContactGroup",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="campaign_recipients",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["campaign", "jid"],
+                name="uniq_dispatch_recipient_per_campaign",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.jid} ({self.campaign_id})"
+
+
+class DispatchCampaignQueueItem(models.Model):
+    STATUS_QUEUED = "QUEUED"
+    STATUS_SENDING = "SENDING"
+    STATUS_SENT = "SENT"
+    STATUS_DELIVERED = "DELIVERED"
+    STATUS_READ = "READ"
+    STATUS_PLAYED = "PLAYED"
+    STATUS_FAILED = "FAILED"
+    STATUS_CANCELED = "CANCELED"
+
+    STATUS_CHOICES = [
+        (STATUS_QUEUED, "Na fila"),
+        (STATUS_SENDING, "Enviando"),
+        (STATUS_SENT, "Enviado"),
+        (STATUS_DELIVERED, "Entregue"),
+        (STATUS_READ, "Lido"),
+        (STATUS_PLAYED, "Reproduzido"),
+        (STATUS_FAILED, "Falhou"),
+        (STATUS_CANCELED, "Cancelado"),
+    ]
+
+    campaign = models.ForeignKey(
+        "DispatchCampaign",
+        on_delete=models.CASCADE,
+        related_name="queue_items",
+    )
+    instance = models.ForeignKey(
+        "Instance",
+        on_delete=models.CASCADE,
+        related_name="dispatch_queue_items",
+    )
+    recipient = models.ForeignKey(
+        "DispatchCampaignRecipient",
+        on_delete=models.CASCADE,
+        related_name="queue_items",
+    )
+
+    step = models.PositiveIntegerField(default=1, help_text="Ordem de envio para este contato (1..N).")
+    scheduled_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_QUEUED, db_index=True)
+    attempts = models.PositiveIntegerField(default=0)
+
+    template = models.ForeignKey(
+        "DispatchMessageTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="queue_items",
+    )
+    rendered_body = models.TextField(blank=True)
+    media_file = models.ForeignKey(
+        "MediaFile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="queue_items",
+    )
+
+    wamid = models.CharField(max_length=120, null=True, blank=True, db_index=True)
+    node_response = models.JSONField(default=dict, blank=True)
+    error_text = models.TextField(blank=True)
+
+    sent_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    played_at = models.DateTimeField(null=True, blank=True)
+    failed_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["scheduled_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["campaign", "recipient", "step"],
+                name="uniq_dispatch_queue_step_per_recipient",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["instance", "status", "scheduled_at"]),
+            models.Index(fields=["campaign", "status"]),
+            models.Index(fields=["wamid"]),
+        ]
+
+    def __str__(self):
+        return f"QueueItem {self.id} - {self.status}"
+
+
+class DispatchInstanceState(models.Model):
+    instance = models.OneToOneField(
+        "Instance",
+        on_delete=models.CASCADE,
+        related_name="dispatch_state",
+    )
+    next_available_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    last_dispatched_at = models.DateTimeField(null=True, blank=True)
+
+    last_campaign = models.ForeignKey(
+        "DispatchCampaign",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="instance_states",
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Estado de Disparo da Instância"
+        verbose_name_plural = "Estados de Disparo das Instâncias"
+
+    def __str__(self):
+        return f"{self.instance.name} - next={self.next_available_at}"

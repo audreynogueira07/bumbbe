@@ -85,9 +85,10 @@ class NodeBridge:
     # ==========================================================================
     # SESSÃO E CONEXÃO (Rotas Administrativas ou Públicas)
     # ==========================================================================
-    def create_session(self, session_id):
+    def create_session(self, session_id, timeout=None):
         # Rota de Admin (usa x-api-key)
-        return self._request('POST', '/sessions/start', {'sessionId': session_id})
+        # timeout maior reduz falso-positivo de "falhou", quando o Baileys demora para subir sessão
+        return self._request('POST', '/sessions/start', {'sessionId': session_id}, timeout=timeout)
 
     def delete_session(self, session_id):
         # Rota de Admin (usa x-api-key)
@@ -101,7 +102,16 @@ class NodeBridge:
         return self._request('GET', f'/{session_id}/status', session_token=session_token)
 
     def get_qrcode(self, session_id):
-        # Rota pública (check-connection), não precisa de token
+        """
+        Busca status + QR da sessão.
+
+        1) Tenta rota administrativa /sessions/:id/qr (retorna qr + qrCode + status)
+        2) Fallback para rota pública /:id/check-connection (compatibilidade)
+        """
+        ok, data = self._request('GET', f'/sessions/{session_id}/qr')
+        if ok:
+            return ok, data
+        # fallback de compatibilidade
         return self._request('GET', f'/{session_id}/check-connection')
 
     def list_sessions(self):
@@ -310,3 +320,43 @@ def sync_instance_token(instance, bridge=None):
     except Exception as exc:  # noqa: BLE001
         logger.warning("Falha ao sincronizar token da instância: %s", exc)
         return False
+
+
+def wait_for_qr(bridge, session_id, timeout_seconds=45, poll_interval=1.5):
+    """
+    Faz polling curto para acelerar entrega do QR após clicar em "Iniciar Sessão".
+
+    Retorna dict com:
+      {"status": <str|None>, "qrcode": <data-url|None>, "qr": <texto|None>, "raw": <payload>}
+    """
+    import time
+
+    deadline = time.time() + max(1, int(timeout_seconds))
+    last_payload = {}
+
+    while time.time() < deadline:
+        ok, payload = bridge.get_qrcode(session_id)
+        if ok and isinstance(payload, dict):
+            last_payload = payload
+            status_raw = payload.get('status')
+            status_norm = _map_node_status_to_django(status_raw)
+            qrcode = payload.get('qrCode') or payload.get('qrcode')
+            qr_text = payload.get('qr')
+
+            # condição de sucesso: já conectou ou já temos QR pra exibir
+            if status_norm == 'CONNECTED' or qrcode or qr_text:
+                return {
+                    'status': status_norm,
+                    'qrcode': qrcode,
+                    'qr': qr_text,
+                    'raw': payload,
+                }
+
+        time.sleep(max(0.3, float(poll_interval)))
+
+    return {
+        'status': _map_node_status_to_django(last_payload.get('status')) if isinstance(last_payload, dict) else None,
+        'qrcode': (last_payload.get('qrCode') or last_payload.get('qrcode')) if isinstance(last_payload, dict) else None,
+        'qr': last_payload.get('qr') if isinstance(last_payload, dict) else None,
+        'raw': last_payload if isinstance(last_payload, dict) else {},
+    }

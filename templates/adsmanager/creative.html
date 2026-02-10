@@ -1,0 +1,130 @@
+{% extends "adsmanager/base.html" %}
+{% block title %}Criativos | Bumbbe Ads{% endblock %}
+{% block subtitle %}Criação{% endblock %}
+{% block header_title %}Criativos da Conta{% endblock %}
+
+{% block header_actions %}
+    <a href="{% url 'adsmanager:dashboard' %}" class="btn btn-outline-secondary btn-lg">
+        <i class="fas fa-arrow-left me-2"></i>Voltar
+    </a>
+{% endblock %}
+
+{% block content %}
+
+<div class="row g-4 mb-5">
+    <div class="col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(140,82,255,0.12); color: var(--brand-purple);">
+                <i class="fas fa-images"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ account.creatives.count|default:0 }}</h3>
+                <small class="text-muted">Criativos cadastrados</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(13,110,253,0.12); color: #0d6efd;">
+                <i class="fas fa-rocket"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ account.campaigns.count|default:0 }}</h3>
+                <small class="text-muted">Campanhas locais</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="bb-card">
+            <div class="bb-header d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-bold">Novo criativo</div>
+                    <div class="text-muted small">A IA pode gerar variações a partir do texto base.</div>
+                </div>
+                <span class="badge bg-light text-dark border"><i class="fas fa-building me-1"></i> {{ account.name }}</span>
+            </div>
+
+            <div class="bb-body">
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger border-0 shadow-sm">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nome</label>
+                        {{ form.name.as_widget(attrs={"class":"form-control", "placeholder":"Ex.: Criativo Janeiro - Oferta"}) }}
+                        {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Texto base</label>
+                        {{ form.base_text.as_widget(attrs={"class":"form-control", "rows":"5", "placeholder":"Escreva o texto base do anúncio (benefício, oferta, prova, CTA)..."}) }}
+                        {% if form.base_text.errors %}<div class="text-danger small mt-1">{{ form.base_text.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Imagem (opcional)</label>
+                        {{ form.image.as_widget(attrs={"class":"form-control"}) }}
+                        {% if form.image.errors %}<div class="text-danger small mt-1">{{ form.image.errors }}</div>{% endif %}
+                    </div>
+
+                    <button type="submit" class="btn btn-purple btn-lg">
+                        <i class="fas fa-save me-2"></i>Salvar Criativo
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="bb-card">
+            <div class="bb-header">
+                <div class="fw-bold"><i class="fas fa-clock me-2" style="color: var(--brand-purple);"></i>Últimos criativos</div>
+                <div class="text-muted small">Os mais recentes dessa conta.</div>
+            </div>
+            <div class="bb-body">
+                <div class="d-flex flex-column gap-3">
+                    {% for c in creatives %}
+                        <div class="p-3 bg-white border rounded-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div style="overflow:hidden;">
+                                    <div class="fw-bold text-truncate" title="{{ c.name }}">{{ c.name }}</div>
+                                    <div class="small text-muted text-truncate">{{ c.base_text }}</div>
+                                </div>
+                                <div class="ms-2">
+                                    {% if c.generated_text %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle" title="A IA gerou variações">
+                                            <i class="fas fa-robot"></i>
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary border" title="Somente texto base">
+                                            <i class="fas fa-pen"></i>
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if c.image %}
+                                <div class="mt-3">
+                                    <img src="{{ c.image.url }}" alt="Imagem" style="width:100%; border-radius: 14px; border: 1px solid #eceef1;">
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% empty %}
+                        <div class="text-muted">Nenhum criativo ainda.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,425 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Disparador • Templates | {{ instance.name|default:"Bumbbe Chat" }}</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        :root { --bg:#F4F5FA; --text:#111827; }
+        body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); }
+        .main-panel { margin-left:280px; min-height:100vh; padding:2rem; transition:.3s; }
+        .card-soft { border:0; box-shadow:0 4px 14px rgba(15,23,42,.06); border-radius:14px; }
+        .nav-pills .nav-link { color:#4b5563; }
+        .nav-pills .nav-link.active { background:#111827; color:#fff; }
+        .preview-box { min-height:220px; white-space:pre-wrap; background:#0f172a; color:#e2e8f0; border-radius:12px; padding:1rem; }
+        .table thead th { font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; }
+        .toast-container { position:fixed; bottom:20px; right:20px; z-index:9999; }
+        @media (max-width:991px){ .main-panel{ margin-left:0; padding:1rem; } }
+    </style>
+</head>
+<body>
+    {% include 'fillow/elements/sidebar.html' %}
+
+    <div class="main-panel">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div>
+                <h3 class="fw-bold mb-1"><i class="far fa-file-alt text-primary me-2"></i>Templates de Mensagem</h3>
+                <div class="text-muted small">
+                    Crie versões reutilizáveis com variáveis como <code>{nome}</code>, <code>{empresa}</code>, <code>{link}</code>.
+                </div>
+            </div>
+            <button class="btn btn-dark" id="btn-new-template">
+                <i class="fas fa-plus me-1"></i> Novo template
+            </button>
+        </div>
+
+        <div class="card card-soft mb-4">
+            <div class="card-body p-2">
+                <ul class="nav nav-pills">
+                    <li class="nav-item"><a class="nav-link" href="{{ dispatch_nav.dashboard|default:'/fillow/disparador/' }}">Visão geral</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="{{ dispatch_nav.templates|default:'/fillow/disparador/templates/' }}">Templates</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ dispatch_nav.groups|default:'/fillow/disparador/grupos/' }}">Grupos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ dispatch_nav.campaigns|default:'/fillow/disparador/campanhas/' }}">Campanhas</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ dispatch_nav.queue|default:'/fillow/disparador/fila/' }}">Fila</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-12 col-xl-5">
+                <div class="card card-soft">
+                    <div class="card-header bg-white border-0">
+                        <h6 class="fw-bold mb-0" id="form-title">Novo template</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="template-form">
+                            <input type="hidden" id="tpl-id" />
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Nome do template</label>
+                                <input type="text" class="form-control" id="tpl-name" required placeholder="Ex.: Boas-vindas WhatsApp">
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Canal</label>
+                                    <select class="form-select" id="tpl-channel">
+                                        <option value="whatsapp">WhatsApp</option>
+                                        <option value="sms">SMS</option>
+                                        <option value="email">E-mail</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Idioma</label>
+                                    <select class="form-select" id="tpl-language">
+                                        <option value="pt-BR">pt-BR</option>
+                                        <option value="en-US">en-US</option>
+                                        <option value="es-ES">es-ES</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 mb-3">
+                                <label class="form-label small fw-bold">Variáveis (separadas por vírgula)</label>
+                                <input type="text" class="form-control" id="tpl-vars" placeholder="nome, empresa, link">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Conteúdo</label>
+                                <textarea class="form-control" id="tpl-content" rows="8" required placeholder="Olá {nome}, tudo bem? Seu protocolo é {protocolo}."></textarea>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-success flex-grow-1" id="btn-save">
+                                    <i class="fas fa-floppy-disk me-1"></i> Salvar template
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="btn-cancel-edit">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card card-soft mt-3">
+                    <div class="card-header bg-white border-0">
+                        <h6 class="fw-bold mb-0">Pré-visualização</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold">Amostra JSON para variáveis</label>
+                            <textarea class="form-control" id="preview-json" rows="3">{"nome":"Maria","empresa":"ACME","protocolo":"A12345","link":"https://seusite.com"}</textarea>
+                        </div>
+                        <button class="btn btn-sm btn-outline-dark mb-2" id="btn-preview">Atualizar preview</button>
+                        <div class="preview-box" id="preview-box">Seu preview aparecerá aqui...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-7">
+                <div class="card card-soft">
+                    <div class="card-body">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" id="search" placeholder="Buscar template por nome, canal ou idioma...">
+                            </div>
+                            <div class="col-md-4 d-grid">
+                                <button class="btn btn-outline-dark" id="btn-refresh">
+                                    <i class="fas fa-rotate me-1"></i> Atualizar lista
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Template</th>
+                                        <th>Canal</th>
+                                        <th>Idioma</th>
+                                        <th>Variáveis</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbl-templates">
+                                    <tr><td colspan="5" class="text-center text-muted py-4">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-container">
+        <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body" id="toastMessage"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_ROOT = ("{{ dispatch_api_base|default:'/api/v1/dispatch' }}").replace(/\/$/, "");
+        const ENDPOINTS = {
+            templates: `${API_ROOT}/templates/`
+        };
+
+        let templates = [];
+        let editingId = null;
+
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(";").shift();
+            return "";
+        }
+        const csrfToken = "{{ csrf_token }}" || getCookie("csrftoken");
+
+        function showToast(message, type = "success") {
+            const el = document.getElementById("liveToast");
+            document.getElementById("toastMessage").textContent = message;
+            el.className = `toast align-items-center text-white border-0 bg-${type}`;
+            new bootstrap.Toast(el).show();
+        }
+
+        function escapeHtml(str) {
+            return String(str || "")
+                .replaceAll("&","&amp;")
+                .replaceAll("<","&lt;")
+                .replaceAll(">","&gt;")
+                .replaceAll('"',"&quot;")
+                .replaceAll("'","&#039;");
+        }
+
+        function normalizeList(payload) {
+            if (Array.isArray(payload)) return payload;
+            if (Array.isArray(payload?.results)) return payload.results;
+            if (Array.isArray(payload?.items)) return payload.items;
+            if (Array.isArray(payload?.data)) return payload.data;
+            return [];
+        }
+
+        async function apiFetch(url, options = {}) {
+            const headers = options.headers || {};
+            const cfg = {
+                ...options,
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    ...headers
+                },
+                credentials: "same-origin",
+                cache: "no-store"
+            };
+            const resp = await fetch(url, cfg);
+            const text = await resp.text();
+            let data;
+            try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+            if (!resp.ok) {
+                throw new Error(data?.detail || data?.message || `Erro ${resp.status}`);
+            }
+            return data;
+        }
+
+        function parseVars(text) {
+            return (text || "")
+                .split(",")
+                .map(v => v.trim())
+                .filter(Boolean);
+        }
+
+        function getFormPayload() {
+            return {
+                name: document.getElementById("tpl-name").value.trim(),
+                channel: document.getElementById("tpl-channel").value,
+                language: document.getElementById("tpl-language").value,
+                content: document.getElementById("tpl-content").value,
+                variables: parseVars(document.getElementById("tpl-vars").value)
+            };
+        }
+
+        function clearForm() {
+            editingId = null;
+            document.getElementById("tpl-id").value = "";
+            document.getElementById("tpl-name").value = "";
+            document.getElementById("tpl-channel").value = "whatsapp";
+            document.getElementById("tpl-language").value = "pt-BR";
+            document.getElementById("tpl-vars").value = "";
+            document.getElementById("tpl-content").value = "";
+            document.getElementById("form-title").textContent = "Novo template";
+            document.getElementById("btn-save").innerHTML = '<i class="fas fa-floppy-disk me-1"></i> Salvar template';
+            document.getElementById("preview-box").textContent = "Seu preview aparecerá aqui...";
+        }
+
+        function fillForm(tpl) {
+            editingId = tpl.id;
+            document.getElementById("tpl-id").value = tpl.id ?? "";
+            document.getElementById("tpl-name").value = tpl.name || "";
+            document.getElementById("tpl-channel").value = tpl.channel || "whatsapp";
+            document.getElementById("tpl-language").value = tpl.language || "pt-BR";
+            document.getElementById("tpl-vars").value = Array.isArray(tpl.variables) ? tpl.variables.join(", ") : (tpl.variables || "");
+            document.getElementById("tpl-content").value = tpl.content || "";
+            document.getElementById("form-title").textContent = `Editando template #${tpl.id}`;
+            document.getElementById("btn-save").innerHTML = '<i class="fas fa-pen me-1"></i> Atualizar template';
+            updatePreview();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        function applyTemplate(content, sample) {
+            let output = String(content || "");
+            Object.keys(sample || {}).forEach(k => {
+                const token = new RegExp(`\\{${k}\\}`, "g");
+                output = output.replace(token, sample[k]);
+            });
+            return output;
+        }
+
+        function updatePreview() {
+            const content = document.getElementById("tpl-content").value || "";
+            let sample = {};
+            const raw = document.getElementById("preview-json").value || "{}";
+            try { sample = JSON.parse(raw); } catch {}
+            const rendered = applyTemplate(content, sample);
+            document.getElementById("preview-box").textContent = rendered || "Sem conteúdo para preview.";
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById("tbl-templates");
+            const query = document.getElementById("search").value.trim().toLowerCase();
+
+            const rows = templates.filter(t => {
+                const hay = `${t.name || ""} ${t.channel || ""} ${t.language || ""} ${Array.isArray(t.variables) ? t.variables.join(" ") : (t.variables || "")}`.toLowerCase();
+                return !query || hay.includes(query);
+            });
+
+            if (!rows.length) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">Nenhum template encontrado.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = rows.map(t => {
+                const vars = Array.isArray(t.variables) ? t.variables : (typeof t.variables === "string" ? t.variables.split(",").map(v => v.trim()).filter(Boolean) : []);
+                const varsHtml = vars.length ? vars.map(v => `<span class="badge text-bg-light border me-1 mb-1">{${escapeHtml(v)}}</span>`).join("") : `<span class="text-muted small">Sem variáveis</span>`;
+                return `
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">${escapeHtml(t.name || `Template #${t.id}`)}</div>
+                            <div class="small text-muted">ID: ${t.id ?? "-"}</div>
+                        </td>
+                        <td><span class="badge text-bg-secondary">${escapeHtml(t.channel || "-")}</span></td>
+                        <td>${escapeHtml(t.language || "-")}</td>
+                        <td>${varsHtml}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary me-1" data-action="edit" data-id="${t.id}">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${t.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        async function loadTemplates() {
+            try {
+                const data = await apiFetch(ENDPOINTS.templates);
+                templates = normalizeList(data);
+                renderTable();
+            } catch (error) {
+                showToast(error.message || "Erro ao carregar templates.", "danger");
+                document.getElementById("tbl-templates").innerHTML =
+                    `<tr><td colspan="5" class="text-center text-danger py-4">Falha ao carregar templates.</td></tr>`;
+            }
+        }
+
+        async function saveTemplate(event) {
+            event.preventDefault();
+            const payload = getFormPayload();
+            if (!payload.name || !payload.content) {
+                showToast("Preencha nome e conteúdo do template.", "danger");
+                return;
+            }
+
+            const btn = document.getElementById("btn-save");
+            const old = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+
+            try {
+                if (editingId) {
+                    await apiFetch(`${ENDPOINTS.templates}${editingId}/`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    showToast("Template atualizado com sucesso.");
+                } else {
+                    await apiFetch(ENDPOINTS.templates, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    showToast("Template criado com sucesso.");
+                }
+
+                clearForm();
+                await loadTemplates();
+            } catch (error) {
+                showToast(error.message || "Não foi possível salvar o template.", "danger");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = old;
+            }
+        }
+
+        async function deleteTemplate(id) {
+            if (!confirm("Deseja remover este template?")) return;
+            try {
+                await apiFetch(`${ENDPOINTS.templates}${id}/`, { method: "DELETE" });
+                showToast("Template removido.");
+                if (editingId === id) clearForm();
+                await loadTemplates();
+            } catch (error) {
+                showToast(error.message || "Não foi possível remover.", "danger");
+            }
+        }
+
+        document.getElementById("template-form").addEventListener("submit", saveTemplate);
+        document.getElementById("btn-cancel-edit").addEventListener("click", clearForm);
+        document.getElementById("btn-new-template").addEventListener("click", clearForm);
+        document.getElementById("btn-preview").addEventListener("click", updatePreview);
+        document.getElementById("tpl-content").addEventListener("input", updatePreview);
+        document.getElementById("search").addEventListener("input", renderTable);
+        document.getElementById("btn-refresh").addEventListener("click", loadTemplates);
+
+        document.getElementById("tbl-templates").addEventListener("click", (e) => {
+            const btn = e.target.closest("button[data-action]");
+            if (!btn) return;
+            const action = btn.dataset.action;
+            const id = Number(btn.dataset.id);
+            const tpl = templates.find(t => Number(t.id) === id);
+            if (!tpl) return;
+
+            if (action === "edit") fillForm(tpl);
+            if (action === "delete") deleteTemplate(id);
+        });
+
+        document.addEventListener("DOMContentLoaded", () => {
+            clearForm();
+            loadTemplates();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+{% extends "adsmanager/base.html" %}
+{% block title %}Conectar Conta | Bumbbe Ads{% endblock %}
+{% block subtitle %}Integrações{% endblock %}
+{% block header_title %}Conectar Contas (Google/Meta/Analytics){% endblock %}
+
+{% block header_actions %}
+    <a href="{% url 'adsmanager:dashboard' %}" class="btn btn-outline-secondary btn-lg">
+        <i class="fas fa-arrow-left me-2"></i>Voltar
+    </a>
+{% endblock %}
+
+{% block content %}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="bb-card">
+            <div class="bb-header">
+                <div class="fw-bold">Conexão</div>
+                <div class="text-muted small">Cole as credenciais em JSON. Depois você pode editar no painel.</div>
+            </div>
+            <div class="bb-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger border-0 shadow-sm">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Plataforma</label>
+                        {{ form.platform.as_widget(attrs={"class":"form-select"}) }}
+                        {% if form.platform.errors %}<div class="text-danger small mt-1">{{ form.platform.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nome da conta</label>
+                        {{ form.name.as_widget(attrs={"class":"form-control", "placeholder":"Ex.: Conta Principal"}) }}
+                        {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Credenciais (JSON)</label>
+                        {{ form.credentials_json.as_widget(attrs={
+                            "class":"form-control",
+                            "rows":"10",
+                            "style":"font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"
+                        }) }}
+                        {% if form.credentials_json.errors %}<div class="text-danger small mt-1">{{ form.credentials_json.errors }}</div>{% endif %}
+                        <div class="text-muted small mt-2">
+                            Dica: se der erro de JSON, revise aspas, vírgulas e chaves.
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch mb-4">
+                        {{ form.active.as_widget(attrs={"class":"form-check-input"}) }}
+                        <label class="form-check-label fw-semibold">Ativa</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-purple btn-lg">
+                        <i class="fas fa-save me-2"></i>Salvar conexão
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="helper-card p-4 mb-3">
+            <div class="fw-bold mb-2"><i class="fab fa-google me-2"></i>Exemplo Google Ads</div>
+            <pre class="code">{
+  "developer_token": "SEU_DEV_TOKEN",
+  "client_id": "SEU_CLIENT_ID",
+  "client_secret": "SEU_CLIENT_SECRET",
+  "refresh_token": "SEU_REFRESH_TOKEN",
+  "login_customer_id": "1234567890",
+  "customer_id": "1234567890"
+}</pre>
+            <div class="text-muted small mt-2">Precisa do <b>customer_id</b> para listar campanhas.</div>
+        </div>
+
+        <div class="helper-card p-4 mb-3">
+            <div class="fw-bold mb-2"><i class="fab fa-facebook me-2"></i>Exemplo Meta Ads</div>
+            <pre class="code">{
+  "access_token": "SEU_ACCESS_TOKEN",
+  "ad_account_id": "123456789012345"
+}</pre>
+            <div class="text-muted small mt-2">Token com permissão <b>ads_management</b>.</div>
+        </div>
+
+        <div class="helper-card p-4">
+            <div class="fw-bold mb-2"><i class="fas fa-chart-line me-2"></i>Exemplo Analytics (GA4)</div>
+            <pre class="code">{
+  "measurement_id": "G-XXXXXXXXXX",
+  "api_secret": "SEU_API_SECRET",
+  "property_id": "123456789"
+}</pre>
+            <div class="text-muted small mt-2">Vai ajudar no cálculo de ROAS real depois.</div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

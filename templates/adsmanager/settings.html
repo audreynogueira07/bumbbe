@@ -1,0 +1,146 @@
+{% extends "adsmanager/base.html" %}
+{% block title %}Configurações | Bumbbe Ads{% endblock %}
+{% block subtitle %}IA & Custos{% endblock %}
+{% block header_title %}Configurações da IA e Limites{% endblock %}
+
+{% block header_actions %}
+    <a href="{% url 'adsmanager:dashboard' %}" class="btn btn-outline-secondary btn-lg">
+        <i class="fas fa-arrow-left me-2"></i>Voltar
+    </a>
+{% endblock %}
+
+{% block content %}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="bb-card">
+            <div class="bb-header">
+                <div class="fw-bold">Configurações do usuário</div>
+                <div class="text-muted small">Controle quanto a IA pode gastar e quanto ela pode mexer nas campanhas.</div>
+            </div>
+            <div class="bb-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger border-0 shadow-sm">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div class="form-check form-switch mb-3">
+                        {{ form.ai_enabled.as_widget(attrs={"class":"form-check-input"}) }}
+                        <label class="form-check-label fw-semibold">IA ligada</label>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Provider</label>
+                            {{ form.ai_provider.as_widget(attrs={"class":"form-select"}) }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Modelo</label>
+                            {{ form.ai_model.as_widget(attrs={"class":"form-control"}) }}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="fw-bold mb-2">Limites de custo da IA (USD)</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Diário</label>
+                            {{ form.ai_daily_limit_usd.as_widget(attrs={"class":"form-control"}) }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Mensal</label>
+                            {{ form.ai_monthly_limit_usd.as_widget(attrs={"class":"form-control"}) }}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="fw-bold mb-2">Limites globais de ads (micros)</div>
+                    <div class="text-muted small mb-2">Aplicado como proteção no app.</div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Teto diário</label>
+                            {{ form.global_daily_spend_cap_micros.as_widget(attrs={"class":"form-control"}) }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Teto mensal</label>
+                            {{ form.global_monthly_spend_cap_micros.as_widget(attrs={"class":"form-control"}) }}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="fw-bold mb-2">Permissões da automação</div>
+
+                    <div class="form-check mb-2">
+                        {{ form.allow_auto_sync.as_widget(attrs={"class":"form-check-input"}) }}
+                        <label class="form-check-label fw-semibold">Sincronizar dados automaticamente</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        {{ form.allow_auto_optimize.as_widget(attrs={"class":"form-check-input"}) }}
+                        <label class="form-check-label fw-semibold">Otimizar automaticamente</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        {{ form.allow_auto_pause.as_widget(attrs={"class":"form-check-input"}) }}
+                        <label class="form-check-label fw-semibold">Pausar campanhas automaticamente</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        {{ form.allow_auto_duplicate.as_widget(attrs={"class":"form-check-input"}) }}
+                        <label class="form-check-label fw-semibold">Duplicar campanhas automaticamente</label>
+                    </div>
+                    <div class="form-check mb-4">
+                        {{ form.allow_auto_refresh_creatives.as_widget(attrs={"class":"form-check-input"}) }}
+                        <label class="form-check-label fw-semibold">Atualizar criativos automaticamente</label>
+                    </div>
+
+                    <div class="form-check form-switch mb-4">
+                        {{ form.default_economic_mode.as_widget(attrs={"class":"form-check-input"}) }}
+                        <label class="form-check-label fw-semibold">Modo econômico por padrão</label>
+                        <div class="text-muted small">Se ligado, a IA é mais conservadora (bom para pouco orçamento).</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-purple btn-lg">
+                        <i class="fas fa-save me-2"></i>Salvar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="helper-card p-4 mb-3">
+            <div class="fw-bold mb-2"><i class="fas fa-sack-dollar me-2"></i>Como “vender com poucos reais”</div>
+            <div class="text-muted small">
+                Regras que quase sempre funcionam com orçamento baixo:
+                <ul class="mt-2 mb-0">
+                    <li>1 campanha, 1 objetivo, 1 criativo forte (sem dispersão).</li>
+                    <li>Troque criativo antes de mexer no público.</li>
+                    <li>Espere dados: não otimize com 2 cliques.</li>
+                    <li>Defina teto diário e respeite o período de aprendizado.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="helper-card p-4">
+            <div class="fw-bold mb-2"><i class="fas fa-robot me-2"></i>Sobre a IA</div>
+            <div class="text-muted small">
+                A IA pode:
+                <ul class="mt-2 mb-0">
+                    <li>Gerar variações de copy</li>
+                    <li>Sugerir cortes de custos</li>
+                    <li>Indicar duplicação para testes</li>
+                    <li>Recomendar pausas baseadas em CPA/ROAS</li>
+                </ul>
+                No modo econômico ela <b>evita</b> mudanças agressivas.
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

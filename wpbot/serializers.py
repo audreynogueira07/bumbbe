@@ -1,23 +1,37 @@
 from rest_framework import serializers
-from .models import WordpressBot
+
 
 class ChatRequestSerializer(serializers.Serializer):
     """
-    Recebe os dados do Plugin WordPress.
+    Payload vindo do plugin WordPress (via proxy do WP REST).
     """
-    api_secret = serializers.UUIDField()
-    session_uuid = serializers.CharField(max_length=100)
-    message = serializers.CharField(required=False, allow_blank=True)
-    
-    # Opcionais: O plugin pode já enviar os dados se tiver capturado antes
-    user_name = serializers.CharField(required=False, allow_blank=True)
-    user_phone = serializers.CharField(required=False, allow_blank=True)
+    api_secret = serializers.CharField()
+    session_uuid = serializers.CharField()
+    message = serializers.CharField(allow_blank=True, required=False)
+
+    # Leads / identificadores
+    user_name = serializers.CharField(allow_blank=True, required=False)
+    user_phone = serializers.CharField(allow_blank=True, required=False)
+    user_email = serializers.EmailField(allow_blank=True, required=False)
+
+    # Metadados (ex.: page_url, referrer, user_agent, ip, utm, etc.)
+    meta = serializers.JSONField(required=False)
+
 
 class ChatResponseSerializer(serializers.Serializer):
-    """
-    Devolve a resposta para o Plugin.
-    """
+    """Resposta padronizada para o widget."""
     text = serializers.CharField()
-    media_url = serializers.URLField(required=False, allow_null=True)
-    media_type = serializers.CharField(required=False, allow_null=True)
-    sender = serializers.CharField(default="bot")
+    media_url = serializers.CharField(required=False, allow_blank=True)
+    media_type = serializers.CharField(required=False, allow_blank=True)
+    session_uuid = serializers.CharField()
+
+
+class BotAuthSerializer(serializers.Serializer):
+    """Autenticação simples por api_secret (o WordPress não gera a chave)."""
+    api_secret = serializers.CharField()
+    site_url = serializers.URLField(required=False, allow_blank=True)
+
+
+class BotSyncSerializer(BotAuthSerializer):
+    """Recebe as preferências/configs do WordPress para o servidor armazenar."""
+    wp_settings = serializers.JSONField(required=False)

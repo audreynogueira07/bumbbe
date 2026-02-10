@@ -1,8 +1,6 @@
 import logging
 import json
 import requests
-from datetime import datetime
-
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -12,6 +10,13 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.views import LoginView
 from django.conf import settings
+import importlib
+import random
+import re
+from datetime import datetime, timedelta
+
+from django.db import transaction
+from django.db.models import F
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -19,7 +24,19 @@ from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
-from .models import Instance, WebhookConfig, Message
+from .models import (
+    Instance,
+    WebhookConfig,
+    Message,
+    MediaFile,
+    DispatchCampaign,
+    DispatchCampaignRecipient,
+    DispatchCampaignQueueItem,
+    DispatchContact,
+    DispatchContactGroup,
+    DispatchMessageTemplate,
+    DispatchInstanceState,
+)
 from .serializers import (
     InstanceSerializer,
     WebhookConfigSerializer,
@@ -47,13 +64,42 @@ from .serializers import (
     BlockUserSerializer,
     UpdateProfileStatusSerializer,
     CheckOnWhatsappSerializer,
+    DispatchMessageTemplateSerializer,
+    DispatchContactGroupSerializer,
+    DispatchCampaignCreateSerializer,
+    DispatchCampaignSerializer,
+    DispatchQueueItemSerializer,
 )
-from .services import NodeBridge, sync_instance_token
+from .services import NodeBridge, sync_instance_token, _map_node_status_to_django, wait_for_qr
 # Renomeamos o import original para podermos sobrescrever com a versão de DEBUG abaixo
 from .permissions import HasInstanceToken as OriginalHasInstanceToken
+import io
+import base64
 
 logger = logging.getLogger(__name__)
 node_bridge = NodeBridge()
+def _qr_text_to_data_url(qr_text: str | None):
+    """
+    Converte texto QR em data URL PNG.
+    Se o pacote qrcode não estiver instalado, retorna None sem quebrar a aplicação.
+    """
+    if not qr_text:
+        return None
+
+    try:
+        qrcode_mod = importlib.import_module("qrcode")
+        qr = qrcode_mod.QRCode(version=1, box_size=8, border=2)
+        qr.add_data(str(qr_text))
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        encoded = base64.b64encode(buf.getvalue()).decode("ascii")
+        return f"data:image/png;base64,{encoded}"
+    except Exception as exc:
+        logger.warning("Falha ao converter qr_text em imagem PNG: %s", exc)
+        return None
 
 
 # ==============================================================================
@@ -342,16 +388,81 @@ class InstanceActionView(APIView):
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated, HasActivePlan])
 def connect_instance_view(request, instance_id):
-    instance = get_object_or_404(Instance, id=instance_id, owner=request.user)
-    success, data = node_bridge.create_session(instance.session_id)
+    """
+    Inicia (ou reinicia) a sessão no Node e já tenta devolver QR rapidamente.
 
-    if not success:
+    Suporta payload opcional:
+      {"force_qr": true}
+
+    Se force_qr=true, e a sessão estiver em estado não conectado,
+    derrubamos e recriamos para forçar novo QR.
+    """
+    instance = get_object_or_404(Instance, id=instance_id, owner=request.user)
+
+    # request.data pode vir vazio em alguns clients
+    force_qr = False
+    try:
+        force_qr = bool(request.data.get("force_qr"))
+    except Exception:
+        force_qr = str(request.POST.get("force_qr", "")).lower() in {"1", "true", "yes", "on"}
+
+    try:
+        # Estado atual no Node (best-effort)
+        ok_list, sessions = node_bridge.list_sessions()
+        node_item = None
+        if ok_list and isinstance(sessions, list):
+            node_item = next(
+                (s for s in sessions if isinstance(s, dict) and s.get("sessionId") == instance.session_id),
+                None,
+            )
+
+        node_status = _map_node_status_to_django((node_item or {}).get("status"))
+
+        # Se pediu force_qr e NÃO está conectado, derruba para forçar novo QR
+        if force_qr and node_item and node_status != "CONNECTED":
+            node_bridge.delete_session(instance.session_id)
+
+        # Timeout maior para sessão lenta (Baileys em cold start)
+        success, data = node_bridge.create_session(instance.session_id, timeout=120)
+        if not success:
+            return Response(
+                {"error": "Erro ao conectar ao motor", "detail": data},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Poll curto para já devolver QR/status na resposta do clique
+        warm = wait_for_qr(node_bridge, instance.session_id, timeout_seconds=35, poll_interval=1.2)
+
+        # Atualiza status local com normalização
+        new_status = warm.get("status") or _map_node_status_to_django((data or {}).get("status"))
+        if new_status and new_status != instance.status:
+            instance.status = new_status
+            instance.save(update_fields=["status", "updated_at"])
+
+        # Se conectou, sincroniza token/telefone imediatamente
+        if (new_status == "CONNECTED") or (instance.status == "CONNECTED"):
+            sync_instance_token(instance, bridge=node_bridge)
+            instance.refresh_from_db()
+
         return Response(
-            {"error": "Erro ao conectar ao motor", "detail": data},
+            {
+                "ok": True,
+                "status": instance.status,
+                "qrcode": warm.get("qrcode") or _qr_text_to_data_url(warm.get("qr")),
+                "qr_text": warm.get("qr"),
+                "phone": instance.phone_connected,
+                "token": instance.token,
+                "detail": data,
+            }
+        )
+
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Falha ao conectar instância %s: %s", instance.session_id, exc)
+        return Response(
+            {"error": "Erro interno ao iniciar sessão", "detail": str(exc)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    return Response(data)
 
 
 @api_view(["POST"])
@@ -381,51 +492,65 @@ def get_instance_status_view(request, instance_id):
     instance = get_object_or_404(Instance, id=instance_id, owner=request.user)
 
     try:
-        # 1. Consulta o status básico/QR Code
         success_qr, data_qr = node_bridge.get_qrcode(instance.session_id)
-        qrcode = data_qr.get("qrCode") if success_qr and isinstance(data_qr, dict) else None
-        
-        # Variável para controlar se precisamos salvar o banco
-        changed = False
 
-        if success_qr and isinstance(data_qr, dict):
-            new_status = data_qr.get("status")
-            
-            # Atualiza status se mudou
-            if new_status and new_status != instance.status:
-                instance.status = new_status
-                changed = True
+        payload = data_qr if (success_qr and isinstance(data_qr, dict)) else {}
 
-        # ======================================================================
-        # LÓGICA DE SINCRONIZAÇÃO FORÇADA (AUTO-HEALING)
-        # ======================================================================
-        # Se o status é CONNECTED, forçamos uma verificação profunda na rota /sessions
-        # para garantir que temos o Token e o Telefone corretos.
-        if instance.status == "CONNECTED":
-            # Chama o sync que busca na lista de sessões do Node
-            synced = sync_instance_token(instance, bridge=node_bridge)
-            if synced:
-                # Se sync_instance_token salvou algo, recarregamos do banco
+        # QR pode vir como qrCode (data URL) e/ou qr (texto)
+        qrcode = payload.get("qrCode") or payload.get("qrcode")
+        qr_text = payload.get("qr")
+        if not qrcode and qr_text:
+            qrcode = _qr_text_to_data_url(qr_text)
+
+        # Normaliza status (open->CONNECTED, close->DISCONNECTED, etc.)
+        node_status_raw = payload.get("status")
+        new_status = _map_node_status_to_django(node_status_raw)
+
+        changed_fields = []
+
+        if new_status and new_status != instance.status:
+            instance.status = new_status
+            changed_fields.append("status")
+
+        # Se conectou, sincroniza token + telefone via /sessions (self-healing)
+        if (new_status == "CONNECTED") or (instance.status == "CONNECTED"):
+            sync_instance_token(instance, bridge=node_bridge)
+            instance.refresh_from_db()
+        else:
+            # Mesmo não conectado, se não temos token local, tenta sync best-effort
+            if not instance.token:
+                sync_instance_token(instance, bridge=node_bridge)
                 instance.refresh_from_db()
 
-        # Se houve mudança de status e não passou pelo sync (que já salva), salvamos aqui
-        if changed and not instance.status == "CONNECTED":
-            instance.save(update_fields=["status", "updated_at"])
+        # Se houve mudança de status e ainda não foi salva por sync_instance_token
+        if changed_fields:
+            changed_fields.append("updated_at")
+            try:
+                instance.save(update_fields=list(dict.fromkeys(changed_fields)))
+            except Exception:
+                instance.save()
 
         return Response(
             {
                 "status": instance.status,
                 "qrcode": qrcode,
+                "qr_text": qr_text,
                 "phone": instance.phone_connected,
-                # RETORNAMOS O TOKEN PARA O FRONTEND ATUALIZAR SEM REFRESH
-                "token": instance.token, 
+                "token": instance.token,
             }
         )
 
     except Exception as exc:
         logger.warning("Erro ao consultar status da instância: %s", exc)
         return Response(
-            {"status": instance.status, "error": "Unreachable"},
+            {
+                "status": instance.status,
+                "qrcode": None,
+                "qr_text": None,
+                "phone": instance.phone_connected,
+                "token": instance.token,
+                "error": "Unreachable",
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -1577,3 +1702,651 @@ class InternalWebhookReceiver(View):
                     logger.error("Erro ao repassar webhook para cliente: %s", exc)
 
         return JsonResponse({"status": "processed"})
+
+# ==============================================================================
+# 8. DISPARADOR DE MENSAGENS (INTERNO / PAINEL)
+# ==============================================================================
+
+DISPATCH_TARGET_SPLIT_RE = re.compile(r"[\n,;]+")
+
+
+def _normalize_target_to_jid(raw_value: str):
+    raw = str(raw_value or "").strip()
+    if not raw:
+        return "", ""
+
+    if raw.endswith("@g.us"):
+        gid = raw
+        phone = raw.split("@", 1)[0]
+        return phone, gid
+
+    if "@" in raw:
+        user, domain = raw.split("@", 1)
+        if domain == "g.us":
+            return user, f"{user}@g.us"
+
+        digits = re.sub(r"\D", "", user)
+        if not digits:
+            return "", ""
+        return digits, f"{digits}@s.whatsapp.net"
+
+    digits = re.sub(r"\D", "", raw)
+    if not digits:
+        return "", ""
+    return digits, f"{digits}@s.whatsapp.net"
+
+
+def _split_targets(raw_numbers: str):
+    values = DISPATCH_TARGET_SPLIT_RE.split(str(raw_numbers or ""))
+    clean, seen = [], set()
+    for value in values:
+        phone, jid = _normalize_target_to_jid(value)
+        if not jid or jid in seen:
+            continue
+        seen.add(jid)
+        clean.append({"phone_number": phone, "jid": jid})
+    return clean
+
+
+def _extract_wamid(node_resp):
+    if not isinstance(node_resp, dict):
+        return None
+
+    candidates = [
+        node_resp.get("wamid"),
+        node_resp.get("id"),
+        node_resp.get("messageId"),
+        (node_resp.get("key") or {}).get("id") if isinstance(node_resp.get("key"), dict) else None,
+    ]
+    data_obj = node_resp.get("data")
+    if isinstance(data_obj, dict):
+        candidates.extend([
+            data_obj.get("wamid"),
+            data_obj.get("id"),
+            data_obj.get("messageId"),
+            (data_obj.get("key") or {}).get("id") if isinstance(data_obj.get("key"), dict) else None,
+        ])
+
+    for c in candidates:
+        if c:
+            return str(c)
+    return None
+
+
+def _recompute_campaign_metrics(campaign: DispatchCampaign):
+    qs = campaign.queue_items.all()
+    campaign.total_planned = qs.count()
+    campaign.total_sent = qs.filter(
+        status__in=[
+            DispatchCampaignQueueItem.STATUS_SENT,
+            DispatchCampaignQueueItem.STATUS_DELIVERED,
+            DispatchCampaignQueueItem.STATUS_READ,
+            DispatchCampaignQueueItem.STATUS_PLAYED,
+        ]
+    ).count()
+    campaign.total_failed = qs.filter(status=DispatchCampaignQueueItem.STATUS_FAILED).count()
+    campaign.total_delivered = qs.filter(
+        status__in=[
+            DispatchCampaignQueueItem.STATUS_DELIVERED,
+            DispatchCampaignQueueItem.STATUS_READ,
+            DispatchCampaignQueueItem.STATUS_PLAYED,
+        ]
+    ).count()
+    campaign.total_read = qs.filter(
+        status__in=[
+            DispatchCampaignQueueItem.STATUS_READ,
+            DispatchCampaignQueueItem.STATUS_PLAYED,
+        ]
+    ).count()
+
+    pending = qs.filter(
+        status__in=[
+            DispatchCampaignQueueItem.STATUS_QUEUED,
+            DispatchCampaignQueueItem.STATUS_SENDING,
+        ]
+    ).exists()
+
+    if campaign.total_planned > 0 and not pending and campaign.status not in [
+        DispatchCampaign.STATUS_CANCELED,
+        DispatchCampaign.STATUS_COMPLETED,
+    ]:
+        campaign.status = DispatchCampaign.STATUS_COMPLETED
+        campaign.finished_at = timezone.now()
+
+    campaign.save(update_fields=[
+        "total_planned", "total_sent", "total_failed",
+        "total_delivered", "total_read",
+        "status", "finished_at", "updated_at",
+    ])
+
+
+def _render_dispatch_body(template, campaign, recipient, instance):
+    body = template.body or ""
+    if not campaign.use_name_placeholder or "{nome}" not in body:
+        return body
+
+    name = (recipient.display_name or "").strip()
+    if not name:
+        ok, resp = node_bridge.get_display_name(
+            instance.session_id,
+            recipient.jid,
+            session_token=instance.token,
+        )
+        if ok and isinstance(resp, dict):
+            name = (resp.get("name") or "").strip()
+            if name and name != recipient.display_name:
+                recipient.display_name = name
+                recipient.save(update_fields=["display_name"])
+
+    if not name:
+        name = recipient.phone_number or recipient.jid.split("@", 1)[0]
+
+    return body.replace("{nome}", name)
+
+
+def _choose_template_for_campaign(campaign):
+    templates = list(campaign.templates.filter(is_active=True))
+    if not templates:
+        templates = list(campaign.templates.all())
+    if not templates:
+        return None
+    return random.choice(templates)
+
+
+def _build_campaign_queue(campaign, raw_numbers: str, groups):
+    inline_targets = _split_targets(raw_numbers)
+
+    recipients_map = {}
+    for target in inline_targets:
+        recipients_map[target["jid"]] = {
+            "phone_number": target["phone_number"],
+            "jid": target["jid"],
+            "display_name": "",
+            "source": DispatchCampaignRecipient.SOURCE_INLINE,
+            "source_group": None,
+        }
+
+    for grp in groups:
+        for c in grp.contacts.all().iterator():
+            if c.jid in recipients_map:
+                continue
+            recipients_map[c.jid] = {
+                "phone_number": c.phone_number or c.jid.split("@", 1)[0],
+                "jid": c.jid,
+                "display_name": c.display_name or "",
+                "source": DispatchCampaignRecipient.SOURCE_GROUP,
+                "source_group": grp,
+            }
+
+    recipients = [
+        DispatchCampaignRecipient(
+            campaign=campaign,
+            jid=v["jid"],
+            phone_number=v["phone_number"],
+            display_name=v["display_name"],
+            source=v["source"],
+            source_group=v["source_group"],
+        )
+        for v in recipients_map.values()
+    ]
+    DispatchCampaignRecipient.objects.bulk_create(recipients)
+
+    created_recipients = list(campaign.recipients.all().order_by("id"))
+    queue_rows = []
+    for rec in created_recipients:
+        for step in range(1, campaign.messages_per_recipient + 1):
+            queue_rows.append(DispatchCampaignQueueItem(
+                campaign=campaign,
+                instance=campaign.instance,
+                recipient=rec,
+                step=step,
+                scheduled_at=campaign.start_at,
+                status=DispatchCampaignQueueItem.STATUS_QUEUED,
+            ))
+    DispatchCampaignQueueItem.objects.bulk_create(queue_rows)
+
+    campaign.total_recipients = len(created_recipients)
+    campaign.total_planned = len(queue_rows)
+    campaign.save(update_fields=["total_recipients", "total_planned", "updated_at"])
+
+
+def _process_single_queue_item_for_instance(instance, owner, campaign_id=None):
+    now = timezone.now()
+
+    with transaction.atomic():
+        state, _ = DispatchInstanceState.objects.select_for_update().get_or_create(instance=instance)
+
+        if state.next_available_at and state.next_available_at > now:
+            return {
+                "instance_id": str(instance.id),
+                "sent": 0,
+                "reason": "cooldown",
+                "next_available_at": state.next_available_at,
+            }
+
+        q = (
+            DispatchCampaignQueueItem.objects.select_for_update(skip_locked=True)
+            .filter(
+                instance=instance,
+                campaign__owner=owner,
+                campaign__status__in=[DispatchCampaign.STATUS_RUNNING, DispatchCampaign.STATUS_SCHEDULED],
+                campaign__start_at__lte=now,
+                status=DispatchCampaignQueueItem.STATUS_QUEUED,
+            )
+            .order_by("scheduled_at", "id")
+        )
+        if campaign_id:
+            q = q.filter(campaign_id=campaign_id)
+
+        item = q.first()
+        if not item:
+            return {"instance_id": str(instance.id), "sent": 0, "reason": "no_due_items"}
+
+        campaign = item.campaign
+        if campaign.status == DispatchCampaign.STATUS_SCHEDULED:
+            campaign.status = DispatchCampaign.STATUS_RUNNING
+            if not campaign.started_at:
+                campaign.started_at = now
+            campaign.save(update_fields=["status", "started_at", "updated_at"])
+
+        item.status = DispatchCampaignQueueItem.STATUS_SENDING
+        item.attempts = F("attempts") + 1
+        item.save(update_fields=["status", "attempts", "updated_at"])
+
+    item.refresh_from_db()
+    campaign = item.campaign
+    recipient = item.recipient
+
+    template = _choose_template_for_campaign(campaign)
+    if template is None:
+        now_fail = timezone.now()
+        item.status = DispatchCampaignQueueItem.STATUS_FAILED
+        item.failed_at = now_fail
+        item.error_text = "Campanha sem templates disponíveis."
+        item.save(update_fields=["status", "failed_at", "error_text", "updated_at"])
+
+        campaign.total_failed = F("total_failed") + 1
+        campaign.last_error = "Campanha sem templates disponíveis."
+        campaign.save(update_fields=["total_failed", "last_error", "updated_at"])
+        campaign.refresh_from_db()
+        _recompute_campaign_metrics(campaign)
+
+        return {
+            "instance_id": str(instance.id),
+            "campaign_id": campaign.id,
+            "queue_item_id": item.id,
+            "sent": 0,
+            "status": "failed",
+            "error": "Campanha sem templates disponíveis.",
+        }
+
+    rendered = _render_dispatch_body(template, campaign, recipient, instance)
+
+    if template.media_file and template.media_file.file:
+        media_path = template.media_file.file.path
+        if template.media_file.media_type == "image":
+            content_type = "image/jpeg"
+        elif template.media_file.media_type == "video":
+            content_type = "video/mp4"
+        elif template.media_file.media_type == "audio":
+            content_type = "audio/ogg"
+        else:
+            content_type = "application/octet-stream"
+
+        with open(media_path, "rb") as f:
+            files = {"file": (template.media_file.original_name or "arquivo", f.read(), content_type)}
+
+        form_data = {"to": recipient.jid, "caption": rendered}
+        ok, node_resp = node_bridge.send_media(
+            instance.session_id, form_data, files, session_token=instance.token
+        )
+    else:
+        payload = {"to": recipient.jid, "message": rendered, "type": "text"}
+        ok, node_resp = node_bridge.send_message(
+            instance.session_id, payload, session_token=instance.token
+        )
+
+    now2 = timezone.now()
+    delay = random.randint(campaign.min_delay_seconds, campaign.max_delay_seconds)
+
+    with transaction.atomic():
+        item = DispatchCampaignQueueItem.objects.select_for_update().get(pk=item.pk)
+        campaign = DispatchCampaign.objects.select_for_update().get(pk=campaign.pk)
+        state, _ = DispatchInstanceState.objects.select_for_update().get_or_create(instance=instance)
+
+        item.template = template
+        item.rendered_body = rendered
+        item.node_response = node_resp if isinstance(node_resp, dict) else {"raw": str(node_resp)}
+
+        if ok:
+            item.status = DispatchCampaignQueueItem.STATUS_SENT
+            item.sent_at = now2
+            item.error_text = ""
+            item.wamid = _extract_wamid(node_resp)
+            item.save(update_fields=[
+                "template", "rendered_body", "node_response",
+                "status", "sent_at", "error_text", "wamid", "updated_at"
+            ])
+
+            campaign.total_sent = F("total_sent") + 1
+            campaign.last_error = ""
+            campaign.save(update_fields=["total_sent", "last_error", "updated_at"])
+        else:
+            item.status = DispatchCampaignQueueItem.STATUS_FAILED
+            item.failed_at = now2
+            item.error_text = (node_resp.get("error") if isinstance(node_resp, dict) else str(node_resp))[:2000]
+            item.save(update_fields=[
+                "template", "rendered_body", "node_response",
+                "status", "failed_at", "error_text", "updated_at"
+            ])
+
+            campaign.total_failed = F("total_failed") + 1
+            campaign.last_error = item.error_text
+            campaign.save(update_fields=["total_failed", "last_error", "updated_at"])
+
+        state.next_available_at = now2 + timedelta(seconds=delay)
+        state.last_dispatched_at = now2
+        state.last_campaign = campaign
+        state.save(update_fields=["next_available_at", "last_dispatched_at", "last_campaign", "updated_at"])
+
+    campaign.refresh_from_db()
+    _recompute_campaign_metrics(campaign)
+
+    return {
+        "instance_id": str(instance.id),
+        "campaign_id": campaign.id,
+        "queue_item_id": item.id,
+        "sent": 1 if ok else 0,
+        "status": "sent" if ok else "failed",
+        "next_available_at": state.next_available_at,
+        "wamid": item.wamid if ok else None,
+        "error": None if ok else item.error_text,
+    }
+
+
+class DispatchTemplateListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasActivePlan]
+
+    def get(self, request):
+        qs = DispatchMessageTemplate.objects.filter(owner=request.user).order_by("-created_at")
+        return Response(DispatchMessageTemplateSerializer(qs, many=True, context={"request": request}).data)
+
+    def post(self, request):
+        ser = DispatchMessageTemplateSerializer(data=request.data, context={"request": request})
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+        obj = ser.save(owner=request.user)
+        return Response(DispatchMessageTemplateSerializer(obj, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+
+class DispatchTemplateDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasActivePlan]
+
+    def get_object(self, request, pk):
+        return get_object_or_404(DispatchMessageTemplate, pk=pk, owner=request.user)
+
+    def put(self, request, pk):
+        obj = self.get_object(request, pk)
+        ser = DispatchMessageTemplateSerializer(obj, data=request.data, partial=True, context={"request": request})
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+        ser.save()
+        return Response(ser.data)
+
+    def delete(self, request, pk):
+        obj = self.get_object(request, pk)
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DispatchContactGroupListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasActivePlan]
+
+    def get(self, request):
+        qs = DispatchContactGroup.objects.filter(owner=request.user).order_by("name")
+        return Response(DispatchContactGroupSerializer(qs, many=True).data)
+
+    def post(self, request):
+        name = (request.data.get("name") or "").strip()
+        description = (request.data.get("description") or "").strip()
+        raw_numbers = request.data.get("raw_numbers", "")
+
+        if not name:
+            return Response({"error": "name é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            grp = DispatchContactGroup.objects.create(owner=request.user, name=name, description=description)
+            targets = _split_targets(raw_numbers)
+            contacts = [DispatchContact(group=grp, phone_number=t["phone_number"], jid=t["jid"], display_name="") for t in targets]
+            if contacts:
+                DispatchContact.objects.bulk_create(contacts, ignore_conflicts=True)
+
+        return Response(DispatchContactGroupSerializer(grp).data, status=status.HTTP_201_CREATED)
+
+
+class DispatchContactGroupDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasActivePlan]
+
+    def get_object(self, request, group_id):
+        return get_object_or_404(DispatchContactGroup, id=group_id, owner=request.user)
+
+    def get(self, request, group_id):
+        grp = self.get_object(request, group_id)
+        return Response(DispatchContactGroupSerializer(grp).data)
+
+    def put(self, request, group_id):
+        grp = self.get_object(request, group_id)
+        name = request.data.get("name")
+        description = request.data.get("description")
+        if name is not None:
+            grp.name = str(name).strip()
+        if description is not None:
+            grp.description = str(description).strip()
+        grp.save(update_fields=["name", "description", "updated_at"])
+        return Response(DispatchContactGroupSerializer(grp).data)
+
+    def delete(self, request, group_id):
+        grp = self.get_object(request, group_id)
+        grp.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DispatchContactGroupSyncContactsView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasActivePlan]
+
+    def post(self, request, group_id):
+        grp = get_object_or_404(DispatchContactGroup, id=group_id, owner=request.user)
+        raw_numbers = request.data.get("raw_numbers", "")
+        mode = str(request.data.get("mode", "append")).lower()  # append | replace
+
+        targets = _split_targets(raw_numbers)
+        if not targets and mode != "replace":
+            return Response({"error": "Nenhum número válido informado."}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            if mode == "replace":
+                grp.contacts.all().delete()
+
+            contacts = [DispatchContact(group=grp, phone_number=t["phone_number"], jid=t["jid"], display_name="") for t in targets]
+            if contacts:
+                DispatchContact.objects.bulk_create(contacts, ignore_conflicts=True)
+
+        return Response(DispatchContactGroupSerializer(grp).data)
+
+
+class DispatchCampaignListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasActivePlan]
+
+    def get(self, request):
+        qs = DispatchCampaign.objects.filter(owner=request.user).select_related("instance").order_by("-created_at")
+        instance_id = request.query_params.get("instance_id")
+        st = request.query_params.get("status")
+        if instance_id:
+            qs = qs.filter(instance_id=instance_id)
+        if st:
+            qs = qs.filter(status=st)
+        return Response(DispatchCampaignSerializer(qs, many=True).data)
+
+    def post(self, request):
+        ser = DispatchCampaignCreateSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = ser.validated_data
+        instance = get_object_or_404(Instance, id=data["instance_id"], owner=request.user)
+        if instance.status != "CONNECTED":
+            return Response({"error": "A instância selecionada precisa estar CONNECTED para disparos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        templates = list(DispatchMessageTemplate.objects.filter(owner=request.user, id__in=(data.get("template_ids") or [])))
+        if not templates:
+            return Response({"error": "Selecione ao menos 1 template válido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        groups = list(DispatchContactGroup.objects.filter(owner=request.user, id__in=(data.get("group_ids") or [])))
+        raw_numbers = data.get("raw_numbers", "")
+        if not str(raw_numbers).strip() and not groups:
+            return Response({"error": "Informe raw_numbers e/ou selecione ao menos um grupo."}, status=status.HTTP_400_BAD_REQUEST)
+
+        start_at = data.get("start_at") or timezone.now()
+        new_status = DispatchCampaign.STATUS_SCHEDULED if start_at > timezone.now() else DispatchCampaign.STATUS_RUNNING
+
+        with transaction.atomic():
+            campaign = DispatchCampaign.objects.create(
+                owner=request.user,
+                instance=instance,
+                name=data["name"],
+                start_at=start_at,
+                min_delay_seconds=data["min_delay_seconds"],
+                max_delay_seconds=data["max_delay_seconds"],
+                messages_per_recipient=data["messages_per_recipient"],
+                use_name_placeholder=data.get("use_name_placeholder", True),
+                raw_numbers=raw_numbers,
+                status=new_status,
+                started_at=timezone.now() if new_status == DispatchCampaign.STATUS_RUNNING else None,
+            )
+            campaign.templates.set(templates)
+            if groups:
+                campaign.groups.set(groups)
+
+            _build_campaign_queue(campaign, raw_numbers=raw_numbers, groups=groups)
+
+        return Response(DispatchCampaignSerializer(campaign).data, status=status.HTTP_201_CREATED)
+
+
+class DispatchCampaignDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasActivePlan]
+
+    def get_object(self, request, campaign_id):
+        return get_object_or_404(DispatchCampaign, id=campaign_id, owner=request.user)
+
+    def get(self, request, campaign_id):
+        return Response(DispatchCampaignSerializer(self.get_object(request, campaign_id)).data)
+
+    def delete(self, request, campaign_id):
+        campaign = self.get_object(request, campaign_id)
+        campaign.status = DispatchCampaign.STATUS_CANCELED
+        campaign.finished_at = timezone.now()
+        campaign.save(update_fields=["status", "finished_at", "updated_at"])
+        campaign.queue_items.filter(status=DispatchCampaignQueueItem.STATUS_QUEUED).update(
+            status=DispatchCampaignQueueItem.STATUS_CANCELED,
+            updated_at=timezone.now(),
+        )
+        _recompute_campaign_metrics(campaign)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DispatchCampaignActionView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasActivePlan]
+
+    def post(self, request, campaign_id, action):
+        campaign = get_object_or_404(DispatchCampaign, id=campaign_id, owner=request.user)
+        action = str(action).lower()
+
+        if action == "start":
+            if campaign.status in [DispatchCampaign.STATUS_CANCELED, DispatchCampaign.STATUS_COMPLETED]:
+                return Response({"error": "Campanha finalizada não pode ser iniciada."}, status=status.HTTP_400_BAD_REQUEST)
+            campaign.status = DispatchCampaign.STATUS_RUNNING
+            if not campaign.started_at:
+                campaign.started_at = timezone.now()
+            if campaign.start_at > timezone.now():
+                campaign.start_at = timezone.now()
+            campaign.save(update_fields=["status", "started_at", "start_at", "updated_at"])
+            return Response({"status": campaign.status})
+
+        if action == "pause":
+            if campaign.status not in [DispatchCampaign.STATUS_RUNNING, DispatchCampaign.STATUS_SCHEDULED]:
+                return Response({"error": "Somente campanhas ativas/agendadas podem ser pausadas."}, status=status.HTTP_400_BAD_REQUEST)
+            campaign.status = DispatchCampaign.STATUS_PAUSED
+            campaign.save(update_fields=["status", "updated_at"])
+            return Response({"status": campaign.status})
+
+        if action in ["resume", "continue"]:
+            if campaign.status != DispatchCampaign.STATUS_PAUSED:
+                return Response({"error": "A campanha precisa estar pausada para retomar."}, status=status.HTTP_400_BAD_REQUEST)
+            campaign.status = DispatchCampaign.STATUS_RUNNING
+            campaign.save(update_fields=["status", "updated_at"])
+            return Response({"status": campaign.status})
+
+        if action == "cancel":
+            campaign.status = DispatchCampaign.STATUS_CANCELED
+            campaign.finished_at = timezone.now()
+            campaign.save(update_fields=["status", "finished_at", "updated_at"])
+            campaign.queue_items.filter(status=DispatchCampaignQueueItem.STATUS_QUEUED).update(
+                status=DispatchCampaignQueueItem.STATUS_CANCELED,
+                updated_at=timezone.now(),
+            )
+            _recompute_campaign_metrics(campaign)
+            return Response({"status": campaign.status})
+
+        return Response({"error": "Ação inválida."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DispatchCampaignQueueView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasActivePlan]
+
+    def get(self, request, campaign_id):
+        campaign = get_object_or_404(DispatchCampaign, id=campaign_id, owner=request.user)
+        qs = campaign.queue_items.select_related("recipient", "template").order_by("scheduled_at", "id")
+        queue_status = request.query_params.get("status")
+        if queue_status:
+            qs = qs.filter(status=queue_status)
+
+        limit = int(request.query_params.get("limit", 200))
+        limit = max(1, min(limit, 1000))
+
+        data = DispatchQueueItemSerializer(qs[:limit], many=True).data
+        return Response({"campaign": DispatchCampaignSerializer(campaign).data, "items": data})
+
+
+class DispatchQueueWorkerView(APIView):
+    permission_classes = [permissions.IsAuthenticated, HasActivePlan]
+
+    def post(self, request):
+        instance_id = request.data.get("instance_id")
+        campaign_id = request.data.get("campaign_id")
+        max_instances = int(request.data.get("max_instances", 3))
+        max_instances = max(1, min(max_instances, 20))
+
+        instances_qs = Instance.objects.filter(owner=request.user, status="CONNECTED")
+        if instance_id:
+            instances_qs = instances_qs.filter(id=instance_id)
+
+        due_instance_ids = (
+            DispatchCampaignQueueItem.objects.filter(
+                instance__in=instances_qs,
+                status=DispatchCampaignQueueItem.STATUS_QUEUED,
+                campaign__status__in=[DispatchCampaign.STATUS_RUNNING, DispatchCampaign.STATUS_SCHEDULED],
+                campaign__start_at__lte=timezone.now(),
+            )
+            .values_list("instance_id", flat=True)
+            .distinct()[:max_instances]
+        )
+
+        instances = list(instances_qs.filter(id__in=due_instance_ids))
+        results = []
+        for instance in instances:
+            results.append(_process_single_queue_item_for_instance(instance, owner=request.user, campaign_id=campaign_id))
+
+        return Response({
+            "processed_instances": len(instances),
+            "results": results,
+        })

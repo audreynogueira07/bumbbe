@@ -1,0 +1,167 @@
+{% extends "adsmanager/base.html" %}
+{% block title %}Dashboard | Bumbbe Ads{% endblock %}
+{% block subtitle %}Tráfego Pago{% endblock %}
+{% block header_title %}Dashboard do Ads Manager{% endblock %}
+
+{% block header_actions %}
+    <a href="{% url 'adsmanager:account_create' %}" class="btn btn-purple btn-lg">
+        <i class="fas fa-plug me-2"></i>Conectar Conta
+    </a>
+{% endblock %}
+
+{% block content %}
+
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(140,82,255,0.12); color: var(--brand-purple);">
+                <i class="fas fa-link"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ accounts.count|default:0 }}</h3>
+                <small class="text-muted">Contas conectadas</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(255,117,31,0.12); color: var(--brand-orange);">
+                <i class="fas fa-bullhorn"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ campaigns_total|default:0 }}</h3>
+                <small class="text-muted">Campanhas encontradas</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(25,135,84,0.12); color: #198754;">
+                <i class="fas fa-bolt"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ optimise_runs_7d|default:0 }}</h3>
+                <small class="text-muted">Otimizações (7 dias)</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h5 class="fw-bold mb-3"><i class="fas fa-layer-group me-2" style="color: var(--brand-purple);"></i>Campanhas (visão geral)</h5>
+
+<div class="row g-4">
+    {% for item in campaigns_data %}
+        {% with account=item.account remote=item.remote local=item.local %}
+        <div class="col-lg-6 col-xl-4">
+            <div class="bb-card h-100">
+                <div class="bb-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white border rounded-circle p-2 shadow-sm me-3" style="color: var(--brand-purple);">
+                            {% if account.platform == 'google_ads' %}
+                                <i class="fab fa-google fa-lg"></i>
+                            {% elif account.platform == 'meta_ads' %}
+                                <i class="fab fa-facebook fa-lg"></i>
+                            {% else %}
+                                <i class="fas fa-chart-line fa-lg"></i>
+                            {% endif %}
+                        </div>
+                        <div style="overflow:hidden;">
+                            <h6 class="fw-bold mb-0 text-truncate" title="{{ remote.name }}">{{ remote.name|default:"(sem nome)" }}</h6>
+                            <small class="text-muted">{{ account.name }}</small>
+                        </div>
+                    </div>
+
+                    <span class="badge-pill
+                        {% if remote.status == 'ENABLED' or remote.status == 'ACTIVE' %} bg-ok
+                        {% elif remote.status == 'PAUSED' %} bg-warn
+                        {% else %} bg-off {% endif %}">
+                        {{ remote.status|default:"—" }}
+                    </span>
+                </div>
+
+                <div class="bb-body">
+                    <div class="mb-2">
+                        <div class="small text-muted d-block mb-1">Plataforma</div>
+                        <div class="fw-bold">
+                            {% if account.platform == 'google_ads' %}Google Ads{% elif account.platform == 'meta_ads' %}Meta Ads{% else %}Analytics{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="small text-muted d-block mb-1">ID</div>
+                        <div class="fw-semibold text-dark">{{ remote.id }}</div>
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <span class="badge bg-light text-dark border"><i class="fas fa-bullseye me-1"></i> {{ remote.objective|default:"Objetivo —" }}</span>
+                        {% if local %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle" title="Campanha salva localmente">
+                                <i class="fas fa-database me-1"></i> Local
+                            </span>
+                        {% else %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle" title="Ainda não está salva localmente">
+                                <i class="fas fa-cloud me-1"></i> Remota
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="small text-muted d-block mb-1">Orçamento</div>
+                        <div class="fw-bold">
+                            {% if remote.budget_micros %}
+                                {{ remote.budget_micros }} <span class="text-muted small">micros</span>
+                            {% elif local and local.budget_micros %}
+                                {{ local.budget_micros }} <span class="text-muted small">micros</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bb-footer">
+                    <div class="small">
+                        {% if local %}
+                            <span class="status-dot bg-success"></span><span class="text-success fw-bold">Pronta</span>
+                        {% else %}
+                            <span class="status-dot bg-secondary"></span><span class="text-muted">Somente leitura</span>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'adsmanager:creative' account.id %}" class="btn btn-sm btn-soft">
+                            Criativo <i class="fas fa-wand-magic-sparkles ms-1"></i>
+                        </a>
+
+                        {% if local %}
+                            <a href="{% url 'adsmanager:schedule' local.id %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                                Agendar <i class="fas fa-clock ms-1"></i>
+                            </a>
+                        {% else %}
+                            <a href="{% url 'adsmanager:import_campaign' account.id remote.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                Importar <i class="fas fa-download ms-1"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endwith %}
+    {% empty %}
+        <div class="col-12 py-5">
+            <div class="text-center p-5 bg-white rounded-4 border border-dashed">
+                <div class="mb-3 opacity-25">
+                    <i class="fas fa-bullhorn fa-4x"></i>
+                </div>
+                <h4 class="fw-bold">Nenhuma campanha</h4>
+                <p class="text-muted mb-4">Conecte contas para listar campanhas e começar a otimizar.</p>
+                <a href="{% url 'adsmanager:account_create' %}" class="btn btn-purple px-4 rounded-pill">
+                    Conectar Conta
+                </a>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

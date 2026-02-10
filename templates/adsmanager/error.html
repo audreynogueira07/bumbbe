@@ -1,0 +1,27 @@
+{% extends "adsmanager/base.html" %}
+{% block title %}Erro | Bumbbe Ads{% endblock %}
+{% block subtitle %}Ads Manager{% endblock %}
+{% block header_title %}Algo deu errado{% endblock %}
+
+{% block header_actions %}
+    <a href="{% url 'adsmanager:dashboard' %}" class="btn btn-purple btn-lg">
+        <i class="fas fa-house me-2"></i>Voltar ao Dashboard
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="bb-card">
+    <div class="bb-header">
+        <div class="fw-bold">Erro</div>
+        <div class="text-muted small">Detalhes abaixo (se houver).</div>
+    </div>
+    <div class="bb-body">
+        <div class="alert alert-danger border-0 shadow-sm">
+            <i class="fas fa-triangle-exclamation me-2"></i>{{ message|default:"Ocorreu um erro inesperado." }}
+        </div>
+        {% if details %}
+            <pre class="code">{{ details }}</pre>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

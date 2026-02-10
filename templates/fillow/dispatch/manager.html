@@ -1,0 +1,2319 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Disparador | Bumbbe Chat</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #f4f6fb;
+            --card: #ffffff;
+            --line: #e7edf5;
+            --text: #0f172a;
+            --muted: #6b7280;
+            --primary: #16a34a;
+            --primary-dark: #0f7a35;
+            --accent: #2563eb;
+            --warning: #f59e0b;
+            --danger: #dc2626;
+            --shadow-sm: 0 8px 24px rgba(15, 23, 42, .06);
+            --shadow-md: 0 12px 30px rgba(15, 23, 42, .10);
+            --radius: 16px;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(1200px 500px at 85% -150px, #e9f6ee 0%, var(--bg) 55%);
+            color: var(--text);
+        }
+
+        .main-panel {
+            margin-left: 280px;
+            min-height: 100vh;
+            padding: 28px;
+            transition: all .25s ease;
+        }
+
+        @media (max-width: 991px) {
+            .main-panel {
+                margin-left: 0;
+                padding: 16px;
+                padding-top: 72px;
+            }
+        }
+
+        .app-shell {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .hero {
+            background: linear-gradient(120deg, #0b1f3a 0%, #14335e 55%, #1d4d8a 100%);
+            border-radius: 20px;
+            padding: 22px 22px;
+            color: #fff;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            right: -60px;
+            top: -30px;
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,.18) 0%, rgba(255,255,255,0) 70%);
+            pointer-events: none;
+        }
+
+        .hero-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: .35rem;
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+
+        .hero-sub {
+            color: rgba(255,255,255,.88);
+            font-size: .93rem;
+            max-width: 900px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: .55rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .btn-soft-light {
+            background: rgba(255,255,255,.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,.25);
+            backdrop-filter: blur(3px);
+        }
+
+        .btn-soft-light:hover {
+            background: rgba(255,255,255,.2);
+            color: #fff;
+        }
+
+        .kpi-grid {
+            margin-top: 14px;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        @media (max-width: 1200px) {
+            .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 680px) {
+            .kpi-grid { grid-template-columns: 1fr; }
+        }
+
+        .kpi-card {
+            border: 1px solid var(--line);
+            background: var(--card);
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: var(--shadow-sm);
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .kpi-row {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: .3rem;
+        }
+
+        .kpi-label {
+            font-size: .82rem;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .kpi-value {
+            font-size: 1.45rem;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+        }
+
+        .kpi-help {
+            font-size: .76rem;
+            color: #8893a4;
+        }
+
+        .panel {
+            margin-top: 16px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: var(--card);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            border-bottom: 1px solid var(--line);
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            padding: .25rem 1rem 0 1rem;
+        }
+
+        .nav-tabs {
+            border: none;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .nav-tabs .nav-link {
+            border: 1px solid transparent;
+            border-bottom: 2px solid transparent;
+            color: #667085;
+            border-radius: 10px 10px 0 0;
+            font-weight: 700;
+            font-size: .9rem;
+            padding: .68rem .9rem;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        .nav-tabs .nav-link:hover {
+            color: #2b3b52;
+            background: #f4f8ff;
+            border-color: #e3ebf8;
+        }
+
+        .nav-tabs .nav-link.active {
+            background: #ffffff;
+            color: #0b2d57;
+            border-color: #e3ebf8;
+            border-bottom-color: var(--primary);
+        }
+
+        .panel-body {
+            padding: 16px;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -.01em;
+            color: #10213b;
+        }
+
+        .section-sub {
+            color: #64748b;
+            font-size: .84rem;
+            margin-top: 2px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: .5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .tool-info {
+            font-size: .78rem;
+            color: #667085;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: .45rem .65rem;
+            border-radius: 10px;
+        }
+
+        .table-wrap {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            overflow: auto;
+            max-height: 520px;
+            background: #fff;
+        }
+
+        .table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 3;
+            background: #f7faff;
+            border-bottom: 1px solid var(--line);
+            font-size: .77rem;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: #4b5a72;
+            white-space: nowrap;
+        }
+
+        .table td {
+            vertical-align: middle;
+            font-size: .88rem;
+        }
+
+        .row-actions {
+            display: flex;
+            gap: .28rem;
+            flex-wrap: wrap;
+        }
+
+        .badge-soft {
+            border: 1px solid #dbe5f1;
+            border-radius: 999px;
+            background: #f8fbff;
+            color: #334155;
+            font-weight: 700;
+            font-size: .72rem;
+            padding: .22rem .52rem;
+        }
+
+        .chips-wrap {
+            display: flex;
+            gap: .4rem;
+            flex-wrap: wrap;
+        }
+
+        .empty-box {
+            border: 1px dashed #cfd9e8;
+            border-radius: 12px;
+            background: #fbfdff;
+            color: #64748b;
+            padding: 1rem;
+            text-align: center;
+            font-size: .9rem;
+        }
+
+        .small-hint {
+            color: #64748b;
+            font-size: .78rem;
+        }
+
+        .code-box {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            border: 1px solid #d9e2ef;
+            background: #f8fbff;
+            border-radius: 10px;
+            padding: .55rem .65rem;
+            font-size: .79rem;
+            color: #1f2e43;
+        }
+
+        .metric-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0,1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .metric-mini {
+            border: 1px solid var(--line);
+            background: #fff;
+            border-radius: 12px;
+            padding: 10px;
+        }
+
+        .metric-mini .v {
+            font-size: 1.1rem;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .metric-mini .l {
+            font-size: .76rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        @media (max-width: 992px) {
+            .metric-strip {
+                grid-template-columns: repeat(2, minmax(0,1fr));
+            }
+        }
+
+        .media-library {
+            border: 1px solid var(--line);
+            background: #fff;
+            border-radius: 12px;
+            padding: .75rem;
+            max-height: 170px;
+            overflow: auto;
+        }
+
+        .media-item {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            border: 1px solid #dbe5f1;
+            border-radius: 999px;
+            padding: .23rem .52rem;
+            margin: .22rem;
+            font-size: .74rem;
+            font-weight: 600;
+            background: #f8fbff;
+            color: #334155;
+        }
+
+        .hover-lift {
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+
+        .hover-lift:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 22px rgba(15,23,42,.07);
+        }
+
+        .toast-container {
+            z-index: 99999;
+        }
+
+        .app-badge {
+            background: #ecfdf3;
+            color: #137a3f;
+            border: 1px solid #bbf7d0;
+            padding: .2rem .55rem;
+            border-radius: 999px;
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .01em;
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+        }
+
+        .help-card {
+            border: 1px solid #dbe5f1;
+            border-radius: 14px;
+            background: #f8fbff;
+            padding: 14px;
+            height: 100%;
+        }
+
+        .help-card h6 {
+            margin: 0 0 .4rem 0;
+            font-weight: 800;
+            font-size: .92rem;
+            color: #17345a;
+        }
+
+        .help-card p {
+            margin: 0;
+            color: #5f6f86;
+            font-size: .84rem;
+        }
+
+        .modal-content {
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: var(--shadow-md);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid #e8eef8;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+
+        .modal-title {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #10213b;
+        }
+
+        .form-label {
+            font-weight: 700;
+            font-size: .82rem;
+            color: #334155;
+            margin-bottom: .35rem;
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: 10px;
+            border-color: #d6e0ed;
+            font-size: .9rem;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .15);
+        }
+
+        .danger-text-truncate {
+            max-width: 280px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #b42318;
+        }
+
+        .pill-status {
+            font-size: .72rem;
+            font-weight: 800;
+            letter-spacing: .02em;
+        }
+
+        .cursor-pointer { cursor: pointer; }
+    </style>
+</head>
+<body>
+    {% include 'fillow/elements/sidebar.html' %}
+
+    <div class="main-panel">
+        <div class="app-shell">
+
+            <!-- HERO -->
+            <div class="hero mb-3">
+                <div class="d-flex flex-wrap gap-3 justify-content-between align-items-start">
+                    <div>
+                        <div class="hero-title">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            Central de Disparos
+                            <span class="app-badge"><i class="fa-solid fa-circle-check"></i> Modo aplicativo</span>
+                        </div>
+                        <div class="hero-sub">
+                            Painel visual e autoexplicativo para gerenciar <strong>templates</strong>, <strong>grupos</strong>,
+                            <strong>campanhas</strong> e <strong>fila de envio</strong>. Clique em <em>Novo</em> para criar,
+                            ou no ícone de lápis para editar em popup.
+                        </div>
+                    </div>
+                    <div class="hero-actions">
+                        <button class="btn btn-soft-light btn-sm" onclick="reloadAll()">
+                            <i class="fa-solid fa-rotate me-1"></i> Atualizar tudo
+                        </button>
+                        <button class="btn btn-light btn-sm text-success fw-bold" onclick="runWorkerQuick()">
+                            <i class="fa-solid fa-bolt me-1"></i> Processar fila agora
+                        </button>
+                        <button class="btn btn-soft-light btn-sm" onclick="openCampaignModal()">
+                            <i class="fa-solid fa-plus me-1"></i> Nova campanha
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPIs -->
+            <div class="kpi-grid">
+                <div class="kpi-card hover-lift">
+                    <div class="kpi-row">
+                        <div class="kpi-label">Templates</div>
+                        <i class="fa-regular fa-file-lines text-success"></i>
+                    </div>
+                    <div class="kpi-value" id="kpi-templates">{{ summary.templates_count }}</div>
+                    <div class="kpi-help">Modelos de mensagem prontos</div>
+                </div>
+
+                <div class="kpi-card hover-lift">
+                    <div class="kpi-row">
+                        <div class="kpi-label">Grupos</div>
+                        <i class="fa-solid fa-users text-primary"></i>
+                    </div>
+                    <div class="kpi-value" id="kpi-groups">{{ summary.groups_count }}</div>
+                    <div class="kpi-help">Listas de contatos segmentadas</div>
+                </div>
+
+                <div class="kpi-card hover-lift">
+                    <div class="kpi-row">
+                        <div class="kpi-label">Campanhas</div>
+                        <i class="fa-solid fa-bullhorn text-warning"></i>
+                    </div>
+                    <div class="kpi-value" id="kpi-campaigns">{{ summary.campaigns_count }}</div>
+                    <div class="kpi-help">Campanhas cadastradas</div>
+                </div>
+
+                <div class="kpi-card hover-lift">
+                    <div class="kpi-row">
+                        <div class="kpi-label">Instâncias conectadas</div>
+                        <i class="fa-brands fa-whatsapp text-success"></i>
+                    </div>
+                    <div class="kpi-value" id="kpi-instances">{{ summary.connected_instances_count }}</div>
+                    <div class="kpi-help">Prontas para disparar</div>
+                </div>
+            </div>
+
+            <!-- PANEL -->
+            <div class="panel">
+                <div class="panel-header">
+                    <ul class="nav nav-tabs" id="dispatchTabs" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-dashboard" type="button">
+                                <i class="fa-solid fa-chart-line"></i> Dashboard
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-templates" type="button">
+                                <i class="fa-regular fa-file-lines"></i> Templates
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-groups" type="button">
+                                <i class="fa-solid fa-users"></i> Grupos
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-campaigns" type="button">
+                                <i class="fa-solid fa-paper-plane"></i> Campanhas
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-queue" type="button">
+                                <i class="fa-solid fa-list-check"></i> Fila & Worker
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-help" type="button">
+                                <i class="fa-regular fa-circle-question"></i> Guia rápido
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="panel-body">
+                    <div class="tab-content">
+
+                        <!-- DASHBOARD -->
+                        <div class="tab-pane fade show active" id="tab-dashboard">
+                            <div class="metric-strip">
+                                <div class="metric-mini">
+                                    <div class="v" id="kpi-planned">{{ summary.total_planned }}</div>
+                                    <div class="l">Total planejado</div>
+                                </div>
+                                <div class="metric-mini">
+                                    <div class="v text-success" id="kpi-sent">{{ summary.total_sent }}</div>
+                                    <div class="l">Total enviado</div>
+                                </div>
+                                <div class="metric-mini">
+                                    <div class="v text-danger" id="kpi-failed">{{ summary.total_failed }}</div>
+                                    <div class="l">Total falhou</div>
+                                </div>
+                                <div class="metric-mini">
+                                    <div class="v" id="kpi-recipients">{{ summary.total_recipients }}</div>
+                                    <div class="l">Total destinatários</div>
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-lg-8">
+                                    <div class="border rounded-3 p-3 h-100">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div>
+                                                <h5 class="section-title">Status das campanhas</h5>
+                                                <div class="section-sub">Visão consolidada para você entender o andamento.</div>
+                                            </div>
+                                            <button class="btn btn-sm btn-outline-secondary" onclick="renderDashboardFromState()">
+                                                <i class="fa-solid fa-rotate"></i>
+                                            </button>
+                                        </div>
+                                        <div id="status-chips" class="chips-wrap"></div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="border rounded-3 p-3 h-100">
+                                        <h5 class="section-title mb-1">Ações rápidas</h5>
+                                        <div class="section-sub mb-3">Atalhos para tarefas frequentes.</div>
+
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-success" onclick="runWorkerQuick()">
+                                                <i class="fa-solid fa-bolt me-1"></i> Processar fila agora
+                                            </button>
+                                            <button class="btn btn-outline-primary" onclick="openTemplateModal()">
+                                                <i class="fa-solid fa-file-circle-plus me-1"></i> Novo template
+                                            </button>
+                                            <button class="btn btn-outline-dark" onclick="openGroupModal()">
+                                                <i class="fa-solid fa-user-group me-1"></i> Novo grupo
+                                            </button>
+                                            <button class="btn btn-outline-success" onclick="openCampaignModal()">
+                                                <i class="fa-solid fa-paper-plane me-1"></i> Nova campanha
+                                            </button>
+                                        </div>
+                                        <hr>
+                                        <div class="small-hint">
+                                            Instâncias conectadas para envio:
+                                            <strong id="connected-instances-inline">{{ summary.connected_instances_count }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TEMPLATES -->
+                        <div class="tab-pane fade" id="tab-templates">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                <div>
+                                    <h5 class="section-title">Templates de mensagem</h5>
+                                    <div class="section-sub">Crie textos com ou sem mídia e reutilize em campanhas.</div>
+                                </div>
+                                <div class="toolbar">
+                                    <span class="tool-info">
+                                        <i class="fa-regular fa-lightbulb me-1"></i>
+                                        Dica: use <strong>{nome}</strong> para personalização.
+                                    </span>
+                                    <button class="btn btn-success btn-sm" onclick="openTemplateModal()">
+                                        <i class="fa-solid fa-plus me-1"></i> Novo template
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="loadTemplates()">
+                                        <i class="fa-solid fa-rotate me-1"></i> Atualizar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-lg-8">
+                                    <div class="table-wrap">
+                                        <table class="table table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:70px;">ID</th>
+                                                    <th>Nome / Conteúdo</th>
+                                                    <th>Tipo</th>
+                                                    <th>Ativo</th>
+                                                    <th>Atualizado</th>
+                                                    <th style="width:180px;">Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="templates-tbody">
+                                                <tr><td colspan="6" class="text-center text-muted py-4">Carregando templates...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-4">
+                                    <div class="border rounded-3 p-3 h-100">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="section-title mb-0">Biblioteca de mídia</h6>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="openMediaUploadModal()">
+                                                <i class="fa-solid fa-upload me-1"></i> Upload
+                                            </button>
+                                        </div>
+                                        <div class="small-hint mb-2">
+                                            Faça upload de arquivos para usar nos templates.
+                                        </div>
+                                        <div id="media-library" class="media-library">
+                                            <div class="small text-muted">Carregando mídias...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- GROUPS -->
+                        <div class="tab-pane fade" id="tab-groups">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                <div>
+                                    <h5 class="section-title">Grupos de contatos</h5>
+                                    <div class="section-sub">Organize os contatos por segmento e sincronize números em lote.</div>
+                                </div>
+                                <div class="toolbar">
+                                    <button class="btn btn-primary btn-sm" onclick="openGroupModal()">
+                                        <i class="fa-solid fa-plus me-1"></i> Novo grupo
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="loadGroups()">
+                                        <i class="fa-solid fa-rotate me-1"></i> Atualizar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-lg-7">
+                                    <div class="table-wrap">
+                                        <table class="table table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:70px;">ID</th>
+                                                    <th>Grupo</th>
+                                                    <th>Contatos</th>
+                                                    <th style="width:170px;">Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="groups-tbody">
+                                                <tr><td colspan="4" class="text-center text-muted py-4">Carregando grupos...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-5">
+                                    <div class="border rounded-3 p-3 h-100">
+                                        <h6 class="section-title mb-1">Sincronizar contatos</h6>
+                                        <div class="section-sub mb-3">Cole números/JIDs e escolha o modo de atualização.</div>
+
+                                        <form id="group-sync-form">
+                                            <div class="mb-3">
+                                                <label class="form-label">Grupo *</label>
+                                                <select id="sync-group-id" class="form-select" required>
+                                                    <option value="">Selecione...</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Modo de sincronização</label>
+                                                <select id="sync-mode" class="form-select">
+                                                    <option value="append">append (acrescentar)</option>
+                                                    <option value="replace">replace (substituir tudo)</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Números/JIDs *</label>
+                                                <textarea id="sync-raw-numbers" class="form-control" rows="7" required placeholder="5511999999999&#10;5511888888888&#10;5511777777777@s.whatsapp.net"></textarea>
+                                                <div class="small-hint mt-1">Separar por linha, vírgula ou ponto e vírgula.</div>
+                                            </div>
+
+                                            <button class="btn btn-dark w-100" type="submit">
+                                                <i class="fa-solid fa-rotate me-1"></i> Sincronizar agora
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CAMPAIGNS -->
+                        <div class="tab-pane fade" id="tab-campaigns">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                <div>
+                                    <h5 class="section-title">Campanhas</h5>
+                                    <div class="section-sub">Crie, edite e controle campanhas com delays em <strong>segundos</strong>.</div>
+                                </div>
+                                <div class="toolbar">
+                                    <span class="tool-info">
+                                        <i class="fa-regular fa-clock me-1"></i>
+                                        Delay mínimo/máximo agora é em <strong>segundos</strong>.
+                                    </span>
+                                    <button class="btn btn-success btn-sm" onclick="openCampaignModal()">
+                                        <i class="fa-solid fa-plus me-1"></i> Nova campanha
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="loadCampaigns()">
+                                        <i class="fa-solid fa-rotate me-1"></i> Atualizar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="table-wrap" style="max-height: 650px;">
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:70px;">ID</th>
+                                            <th>Campanha</th>
+                                            <th>Status</th>
+                                            <th>Instância</th>
+                                            <th>Métricas</th>
+                                            <th style="width:260px;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="campaigns-tbody">
+                                        <tr><td colspan="6" class="text-center text-muted py-4">Carregando campanhas...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="small-hint mt-2">
+                                Use os botões Start/Pause/Resume/Cancel para controle operacional da campanha.
+                            </div>
+                        </div>
+
+                        <!-- QUEUE -->
+                        <div class="tab-pane fade" id="tab-queue">
+                            <div class="row g-3 mb-3">
+                                <div class="col-lg-6">
+                                    <div class="border rounded-3 p-3 h-100">
+                                        <h6 class="section-title mb-1">Consultar fila por campanha</h6>
+                                        <div class="section-sub mb-3">Veja itens pendentes, enviados e falhas.</div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Campanha *</label>
+                                            <select id="queue-campaign-id" class="form-select">
+                                                <option value="">Selecione...</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Status da fila</label>
+                                                <select id="queue-status" class="form-select">
+                                                    <option value="">Todos</option>
+                                                    {% for st, label in queue_status_choices %}
+                                                        <option value="{{ st }}">{{ st }} — {{ label }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Limite de itens</label>
+                                                <input id="queue-limit" type="number" class="form-control" value="200" min="1" max="1000">
+                                            </div>
+                                        </div>
+
+                                        <button class="btn btn-primary w-100" onclick="loadQueue()">
+                                            <i class="fa-solid fa-magnifying-glass me-1"></i> Carregar fila
+                                        </button>
+
+                                        <hr>
+                                        <div id="queue-campaign-summary" class="small-hint">
+                                            Nenhuma campanha selecionada.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-6">
+                                    <div class="border rounded-3 p-3 h-100">
+                                        <h6 class="section-title mb-1">Worker manual</h6>
+                                        <div class="section-sub mb-3">Processa agora os itens elegíveis da fila.</div>
+
+                                        <form id="worker-form">
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Instância (opcional)</label>
+                                                    <select class="form-select" id="worker-instance-id">
+                                                        <option value="">Todas conectadas elegíveis</option>
+                                                        {% for i in connected_instances %}
+                                                            <option value="{{ i.id }}">{{ i.name }} ({{ i.session_id }})</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Campanha (opcional)</label>
+                                                    <select class="form-select" id="worker-campaign-id">
+                                                        <option value="">Qualquer campanha elegível</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">max_instances</label>
+                                                <input type="number" class="form-control" id="worker-max-instances" min="1" max="20" value="3">
+                                            </div>
+
+                                            <button class="btn btn-success w-100" type="submit">
+                                                <i class="fa-solid fa-bolt me-1"></i> Processar agora
+                                            </button>
+                                        </form>
+
+                                        <div class="mt-3">
+                                            <div class="small-hint mb-1">Resposta do worker</div>
+                                            <pre id="worker-result" class="code-box" style="min-height: 86px;">(aguardando execução)</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-wrap" style="max-height: 460px;">
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Status</th>
+                                            <th>Destinatário</th>
+                                            <th>Template</th>
+                                            <th>Step</th>
+                                            <th>Agendado</th>
+                                            <th>Tentativas</th>
+                                            <th>Erro</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="queue-tbody">
+                                        <tr><td colspan="8" class="text-center text-muted py-4">Selecione uma campanha para visualizar a fila.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- HELP -->
+                        <div class="tab-pane fade" id="tab-help">
+                            <div class="row g-3">
+                                <div class="col-lg-4">
+                                    <div class="help-card">
+                                        <h6>1) Crie templates</h6>
+                                        <p>Defina mensagem e mídia opcional. Você pode usar o placeholder <strong>{nome}</strong> para personalizar.</p>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="help-card">
+                                        <h6>2) Organize grupos</h6>
+                                        <p>Cadastre grupos e sincronize contatos em lote (append/replace) para montar audiências rápidas.</p>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="help-card">
+                                        <h6>3) Monte campanhas</h6>
+                                        <p>Escolha instância conectada, templates e grupos. Configure <strong>delay em segundos</strong> entre mensagens.</p>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="help-card">
+                                        <h6>4) Inicie e acompanhe</h6>
+                                        <p>Controle status da campanha (start/pause/resume/cancel) e acompanhe métricas em tempo real.</p>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="help-card">
+                                        <h6>5) Audite a fila</h6>
+                                        <p>Use a aba Fila para inspecionar cada item: agendamento, tentativas, status e erros de envio.</p>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="help-card">
+                                        <h6>6) Worker manual</h6>
+                                        <p>Em caso de urgência, processe a fila manualmente, filtrando por instância ou campanha específica.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div><!-- tab-content -->
+                </div><!-- panel-body -->
+            </div><!-- panel -->
+        </div><!-- app-shell -->
+    </div><!-- main-panel -->
+
+    <!-- TOAST -->
+    <div class="toast-container position-fixed end-0 bottom-0 p-3">
+        <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div id="toastMessage" class="toast-body">OK</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEMPLATE MODAL -->
+    <div class="modal fade" id="templateModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 id="templateModalTitle" class="modal-title">Novo template</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="template-form">
+                    <div class="modal-body">
+                        <input type="hidden" id="tm-id">
+
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Nome *</label>
+                                <input id="tm-name" type="text" class="form-control" required placeholder="Ex.: Cobrança amigável">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Status</label>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" id="tm-active" checked>
+                                    <label class="form-check-label" for="tm-active">Template ativo</label>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Mensagem (body)</label>
+                                <textarea id="tm-body" class="form-control" rows="6" placeholder="Olá {nome}, passando para..."></textarea>
+                                <div class="small-hint mt-1">Se deixar o texto vazio, escolha uma mídia.</div>
+                            </div>
+
+                            <div class="col-md-8">
+                                <label class="form-label">Mídia (opcional)</label>
+                                <select id="tm-media" class="form-select">
+                                    <option value="">-- sem mídia --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <button class="btn btn-outline-primary w-100" type="button" onclick="openMediaUploadModal()">
+                                    <i class="fa-solid fa-upload me-1"></i> Upload de mídia
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 code-box">
+                            <strong>Autoexplicativo:</strong> template = texto e/ou mídia reutilizável. Ele será vinculado à campanha e enviado para cada destinatário da fila.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-light border" type="button" data-bs-dismiss="modal">Cancelar</button>
+                        <button id="template-submit-btn" class="btn btn-success" type="submit">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Salvar template
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- GROUP MODAL -->
+    <div class="modal fade" id="groupModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 id="groupModalTitle" class="modal-title">Novo grupo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="group-form">
+                    <div class="modal-body">
+                        <input type="hidden" id="gm-id">
+
+                        <div class="mb-3">
+                            <label class="form-label">Nome *</label>
+                            <input id="gm-name" type="text" class="form-control" required placeholder="Ex.: Clientes ativos - Fevereiro">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Descrição</label>
+                            <textarea id="gm-description" class="form-control" rows="2" placeholder="Segmentação do grupo..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Contatos iniciais (opcional)</label>
+                            <textarea id="gm-raw-numbers" class="form-control" rows="7" placeholder="5511999999999&#10;5511888888888&#10;5511777777777@s.whatsapp.net"></textarea>
+                            <div class="small-hint mt-1">Pode separar por linha, vírgula, ponto e vírgula e JID.</div>
+                        </div>
+
+                        <div class="code-box">
+                            <strong>Autoexplicativo:</strong> grupo = coleção de contatos para acelerar montagem da campanha.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-light border" type="button" data-bs-dismiss="modal">Cancelar</button>
+                        <button id="group-submit-btn" class="btn btn-primary" type="submit">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Salvar grupo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- CAMPAIGN MODAL -->
+    <div class="modal fade" id="campaignModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 id="campaignModalTitle" class="modal-title">Nova campanha</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="campaign-form">
+                    <div class="modal-body">
+                        <input type="hidden" id="cm-id">
+
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Nome *</label>
+                                <input id="cm-name" type="text" class="form-control" required placeholder="Ex.: Disparo Black Friday">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Início (agendamento)</label>
+                                <input id="cm-start-at" type="datetime-local" class="form-control">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Instância CONNECTED *</label>
+                                <select id="cm-instance-id" class="form-select" required>
+                                    <option value="">Selecione...</option>
+                                    {% for i in instances %}
+                                        <option value="{{ i.id }}" {% if i.status != 'CONNECTED' %}disabled{% endif %}>
+                                            {{ i.name }} — {{ i.status }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="small-hint mt-1">Apenas instâncias CONNECTED podem disparar.</div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Delay mínimo (segundos) *</label>
+                                <input id="cm-min-delay" type="number" class="form-control" min="1" value="20" required>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Delay máximo (segundos) *</label>
+                                <input id="cm-max-delay" type="number" class="form-control" min="1" value="45" required>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Mensagens por destinatário *</label>
+                                <input id="cm-mpr" type="number" class="form-control" min="1" value="1" required>
+                            </div>
+
+                            <div class="col-md-8 d-flex align-items-center">
+                                <div class="form-check form-switch mt-3">
+                                    <input class="form-check-input" type="checkbox" id="cm-use-name" checked>
+                                    <label class="form-check-label" for="cm-use-name">
+                                        Aplicar placeholder <strong>{nome}</strong> quando houver nome do contato
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Templates *</label>
+                                <select id="cm-template-ids" class="form-select" multiple size="8"></select>
+                                <div class="small-hint mt-1">Ctrl/Cmd para seleção múltipla.</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Grupos (opcional)</label>
+                                <select id="cm-group-ids" class="form-select" multiple size="8"></select>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Números avulsos (opcional)</label>
+                                <textarea id="cm-raw-numbers" class="form-control" rows="4" placeholder="5511999999999&#10;5511888888888"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="code-box mt-3">
+                            <strong>Autoexplicativo:</strong> a campanha transforma destinatários em itens de fila e o worker envia respeitando
+                            o delay mínimo/máximo (em <strong>segundos</strong>).
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-light border" type="button" data-bs-dismiss="modal">Cancelar</button>
+                        <button id="campaign-submit-btn" class="btn btn-success" type="submit">
+                            <i class="fa-solid fa-paper-plane me-1"></i> Salvar campanha
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MEDIA UPLOAD MODAL -->
+    <div class="modal fade" id="mediaUploadModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-md modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Upload de mídia</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <form id="media-upload-form">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Arquivo *</label>
+                            <input id="mu-file" type="file" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de mídia (opcional)</label>
+                            <select id="mu-media-type" class="form-select">
+                                <option value="">auto</option>
+                                <option value="image">image</option>
+                                <option value="video">video</option>
+                                <option value="audio">audio</option>
+                                <option value="document">document</option>
+                                <option value="sticker">sticker</option>
+                            </select>
+                        </div>
+
+                        <div class="small-hint">
+                            Se o endpoint de upload não estiver configurado, o sistema mostrará alerta sem quebrar a tela.
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-light border" type="button" data-bs-dismiss="modal">Cancelar</button>
+                        <button id="media-upload-submit-btn" class="btn btn-primary" type="submit">
+                            <i class="fa-solid fa-upload me-1"></i> Enviar mídia
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- INITIAL MEDIA DATA -->
+    <script id="initial-media-files" type="application/json">
+[
+{% for mf in media_files %}
+    {"id": {{ mf.id }}, "original_name": "{{ mf.original_name|escapejs }}", "media_type": "{{ mf.media_type|escapejs }}"}{% if not forloop.last %},{% endif %}
+{% endfor %}
+]
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const CSRF_TOKEN = "{{ csrf_token }}";
+
+        const API = {
+            templates: "{{ dispatch_api.templates }}",
+            groups: "{{ dispatch_api.groups }}",
+            campaigns: "{{ dispatch_api.campaigns }}",
+            worker: "{{ dispatch_api.queue_process }}",
+            mediaUpload: "{{ dispatch_api.media_upload|default:'/api/internal/media/upload/' }}"
+        };
+
+        const STATUS_COLORS = {
+            DRAFT: "secondary",
+            SCHEDULED: "warning",
+            RUNNING: "success",
+            PAUSED: "dark",
+            COMPLETED: "primary",
+            CANCELED: "secondary",
+            FAILED: "danger"
+        };
+
+        const QSTATUS_COLORS = {
+            QUEUED: "secondary",
+            SENDING: "info",
+            SENT: "success",
+            DELIVERED: "success",
+            READ: "primary",
+            PLAYED: "primary",
+            FAILED: "danger",
+            CANCELED: "dark"
+        };
+
+        const state = {
+            templates: [],
+            groups: [],
+            campaigns: [],
+            queueItems: [],
+            queueCampaign: null,
+            mediaFiles: []
+        };
+
+        let templateModal = null;
+        let groupModal = null;
+        let campaignModal = null;
+        let mediaUploadModal = null;
+
+        function showToast(msg, type = "success") {
+            const toastEl = document.getElementById("liveToast");
+            const body = document.getElementById("toastMessage");
+            body.innerText = msg;
+            toastEl.className = `toast align-items-center text-white border-0 bg-${type}`;
+            bootstrap.Toast.getOrCreateInstance(toastEl).show();
+        }
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return "";
+            return String(value)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function formatDate(dt) {
+            if (!dt) return "-";
+            const d = new Date(dt);
+            if (isNaN(d.getTime())) return String(dt);
+            return d.toLocaleString("pt-BR");
+        }
+
+        function parseListPayload(payload) {
+            if (Array.isArray(payload)) return payload;
+            if (payload && Array.isArray(payload.results)) return payload.results;
+            return [];
+        }
+
+        function parseError(err) {
+            if (!err) return "Erro inesperado.";
+            const p = err.payload;
+            if (typeof p === "string" && p.trim()) return p;
+            if (p && typeof p === "object") {
+                if (p.detail) return p.detail;
+                if (p.error) return p.error;
+                try { return JSON.stringify(p); } catch (_) {}
+            }
+            return err.message || "Erro inesperado.";
+        }
+
+        function templateDetailUrl(id) { return `${API.templates}${id}/`; }
+        function groupDetailUrl(id) { return `${API.groups}${id}/`; }
+        function groupSyncUrl(id) { return `${API.groups}${id}/contacts/sync/`; }
+        function campaignDetailUrl(id) { return `${API.campaigns}${id}/`; }
+        function campaignActionUrl(id, action) { return `${API.campaigns}${id}/action/${action}/`; }
+        function campaignQueueUrl(id, qs = "") { return `${API.campaigns}${id}/queue/${qs}`; }
+
+        async function apiFetch(url, { method = "GET", data = null, formData = null } = {}) {
+            const headers = { "Accept": "application/json" };
+            const opts = { method, credentials: "same-origin", headers };
+
+            if (!["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())) {
+                headers["X-CSRFToken"] = CSRF_TOKEN;
+            }
+
+            if (formData) {
+                opts.body = formData;
+            } else if (data !== null && data !== undefined) {
+                headers["Content-Type"] = "application/json";
+                opts.body = JSON.stringify(data);
+            }
+
+            const resp = await fetch(url, opts);
+            const text = await resp.text();
+            let payload = null;
+            if (text) {
+                try { payload = JSON.parse(text); }
+                catch { payload = text; }
+            }
+
+            if (!resp.ok) {
+                throw { status: resp.status, payload };
+            }
+            return payload;
+        }
+
+        function showTab(targetId) {
+            const btn = document.querySelector(`button[data-bs-target="${targetId}"]`);
+            if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
+        }
+
+        function ensureNumber(n, def = 0) {
+            const x = Number(n);
+            return Number.isFinite(x) ? x : def;
+        }
+
+        function getInitialMediaFiles() {
+            try {
+                const raw = document.getElementById("initial-media-files").textContent || "[]";
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (_) {
+                return [];
+            }
+        }
+
+        // -------------------------
+        // DASHBOARD
+        // -------------------------
+        function renderDashboardFromState() {
+            let sent = 0, failed = 0, planned = 0, recipients = 0;
+            const statusMap = {};
+
+            for (const c of state.campaigns) {
+                sent += ensureNumber(c.total_sent, 0);
+                failed += ensureNumber(c.total_failed, 0);
+                planned += ensureNumber(c.total_planned, 0);
+                recipients += ensureNumber(c.total_recipients, 0);
+
+                const st = String(c.status || "UNKNOWN");
+                statusMap[st] = (statusMap[st] || 0) + 1;
+            }
+
+            document.getElementById("kpi-templates").innerText = state.templates.length;
+            document.getElementById("kpi-groups").innerText = state.groups.length;
+            document.getElementById("kpi-campaigns").innerText = state.campaigns.length;
+            document.getElementById("kpi-planned").innerText = planned;
+            document.getElementById("kpi-sent").innerText = sent;
+            document.getElementById("kpi-failed").innerText = failed;
+            document.getElementById("kpi-recipients").innerText = recipients;
+
+            const chips = Object.keys(statusMap).length
+                ? Object.entries(statusMap).map(([st, qty]) => {
+                    const color = STATUS_COLORS[st] || "secondary";
+                    return `<span class="badge bg-${color} pill-status">${escapeHtml(st)}: ${qty}</span>`;
+                }).join("")
+                : `<span class="text-muted small">Nenhuma campanha ainda.</span>`;
+
+            document.getElementById("status-chips").innerHTML = chips;
+        }
+
+        // -------------------------
+        // MEDIA LIBRARY / UPLOAD
+        // -------------------------
+        function renderMediaLibrary() {
+            const container = document.getElementById("media-library");
+            if (!state.mediaFiles.length) {
+                container.innerHTML = `<div class="small text-muted">Sem mídia cadastrada.</div>`;
+                return;
+            }
+
+            container.innerHTML = state.mediaFiles.map(m => `
+                <span class="media-item">
+                    <i class="fa-regular fa-file"></i>
+                    #${escapeHtml(m.id)} • ${escapeHtml(m.original_name || "arquivo")}
+                    <strong>(${escapeHtml(m.media_type || "unknown")})</strong>
+                </span>
+            `).join("");
+        }
+
+        function populateTemplateMediaSelect(current = "") {
+            const sel = document.getElementById("tm-media");
+            const prev = current || sel.value || "";
+            const options = [`<option value="">-- sem mídia --</option>`];
+
+            for (const m of state.mediaFiles) {
+                options.push(`<option value="${m.id}">#${m.id} - ${escapeHtml(m.original_name || "arquivo")} (${escapeHtml(m.media_type || "unknown")})</option>`);
+            }
+
+            sel.innerHTML = options.join("");
+            if (prev && Array.from(sel.options).some(o => String(o.value) === String(prev))) {
+                sel.value = String(prev);
+            }
+        }
+
+        function openMediaUploadModal() {
+            document.getElementById("mu-file").value = "";
+            document.getElementById("mu-media-type").value = "";
+            mediaUploadModal.show();
+        }
+
+        async function onMediaUploadSubmit(e) {
+            e.preventDefault();
+
+            const fileInput = document.getElementById("mu-file");
+            const mediaType = document.getElementById("mu-media-type").value;
+            const file = fileInput.files?.[0];
+
+            if (!file) {
+                showToast("Selecione um arquivo para upload.", "warning");
+                return;
+            }
+
+            if (!API.mediaUpload) {
+                showToast("Endpoint de upload não configurado no backend.", "danger");
+                return;
+            }
+
+            const btn = document.getElementById("media-upload-submit-btn");
+            const oldText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Enviando...`;
+
+            try {
+                const fd = new FormData();
+                fd.append("file", file);
+                fd.append("media", file);
+                fd.append("arquivo", file);
+                fd.append("upload", file);
+                fd.append("original_name", file.name);
+                if (mediaType) fd.append("media_type", mediaType);
+
+                const payload = await apiFetch(API.mediaUpload, { method: "POST", formData: fd });
+
+                // Tenta extrair item retornado do endpoint
+                let item = null;
+                if (payload && typeof payload === "object") {
+                    if (payload.id) item = payload;
+                    else if (Array.isArray(payload.results) && payload.results[0]) item = payload.results[0];
+                    else if (payload.data && payload.data.id) item = payload.data;
+                }
+
+                if (!item || !item.id) {
+                    showToast("Upload concluído, mas o retorno não trouxe ID de mídia.", "warning");
+                } else {
+                    const newItem = {
+                        id: item.id,
+                        original_name: item.original_name || item.name || file.name,
+                        media_type: item.media_type || mediaType || "unknown"
+                    };
+                    // Evita duplicar
+                    const exists = state.mediaFiles.some(x => String(x.id) === String(newItem.id));
+                    if (!exists) state.mediaFiles.unshift(newItem);
+
+                    renderMediaLibrary();
+                    populateTemplateMediaSelect(String(newItem.id));
+                    showToast("Mídia enviada com sucesso.");
+                }
+
+                mediaUploadModal.hide();
+            } catch (err) {
+                showToast(`Falha no upload: ${parseError(err)}`, "danger");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = oldText;
+            }
+        }
+
+        // -------------------------
+        // TEMPLATES
+        // -------------------------
+        async function loadTemplates() {
+            try {
+                const payload = await apiFetch(API.templates);
+                state.templates = parseListPayload(payload);
+                renderTemplatesTable();
+                populateCampaignTemplateSelect();
+                renderDashboardFromState();
+            } catch (err) {
+                showToast(`Erro ao carregar templates: ${parseError(err)}`, "danger");
+            }
+        }
+
+        function templateTypeLabel(t) {
+            const hasBody = !!(t.body && String(t.body).trim());
+            const hasMedia = !!(t.media_file || t.media_file_id);
+            if (hasBody && hasMedia) return "Texto + Mídia";
+            if (hasMedia) return "Só mídia";
+            return "Só texto";
+        }
+
+        function renderTemplatesTable() {
+            const tbody = document.getElementById("templates-tbody");
+
+            if (!state.templates.length) {
+                tbody.innerHTML = `<tr><td colspan="6"><div class="empty-box m-2">Nenhum template cadastrado.</div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = state.templates.map(t => {
+                const active = t.is_active
+                    ? `<span class="badge bg-success">Ativo</span>`
+                    : `<span class="badge bg-secondary">Inativo</span>`;
+
+                return `
+                    <tr class="cursor-pointer">
+                        <td>#${escapeHtml(t.id)}</td>
+                        <td>
+                            <div class="fw-semibold">${escapeHtml(t.name || "-")}</div>
+                            <div class="small text-muted text-truncate" style="max-width: 450px;">
+                                ${escapeHtml((t.body || "").slice(0, 120))}
+                            </div>
+                        </td>
+                        <td><span class="badge-soft">${templateTypeLabel(t)}</span></td>
+                        <td>${active}</td>
+                        <td>${formatDate(t.updated_at || t.created_at)}</td>
+                        <td>
+                            <div class="row-actions">
+                                <button class="btn btn-sm btn-outline-primary" onclick="openTemplateModal(${Number(t.id)})" title="Editar">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate(${Number(t.id)})" title="Excluir">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        function openTemplateModal(id = null) {
+            const title = document.getElementById("templateModalTitle");
+            const submitBtn = document.getElementById("template-submit-btn");
+
+            if (!id) {
+                document.getElementById("tm-id").value = "";
+                document.getElementById("tm-name").value = "";
+                document.getElementById("tm-body").value = "";
+                document.getElementById("tm-active").checked = true;
+                populateTemplateMediaSelect("");
+                title.textContent = "Novo template";
+                submitBtn.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i> Salvar template`;
+            } else {
+                const t = state.templates.find(x => Number(x.id) === Number(id));
+                if (!t) {
+                    showToast("Template não encontrado.", "warning");
+                    return;
+                }
+
+                document.getElementById("tm-id").value = t.id;
+                document.getElementById("tm-name").value = t.name || "";
+                document.getElementById("tm-body").value = t.body || "";
+                document.getElementById("tm-active").checked = !!t.is_active;
+                const mid = (t.media_file && t.media_file.id) || t.media_file_id || "";
+                populateTemplateMediaSelect(String(mid || ""));
+                title.textContent = `Editar template #${t.id}`;
+                submitBtn.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i> Atualizar template`;
+            }
+
+            templateModal.show();
+        }
+
+        async function onTemplateSubmit(e) {
+            e.preventDefault();
+
+            const id = document.getElementById("tm-id").value;
+            const name = document.getElementById("tm-name").value.trim();
+            const body = document.getElementById("tm-body").value;
+            const mediaId = document.getElementById("tm-media").value;
+            const isActive = document.getElementById("tm-active").checked;
+
+            if (!name) {
+                showToast("Informe o nome do template.", "warning");
+                return;
+            }
+
+            if (!body.trim() && !mediaId) {
+                showToast("Informe body ou selecione uma mídia.", "warning");
+                return;
+            }
+
+            const payload = {
+                name,
+                body,
+                is_active: isActive,
+                media_file_id: mediaId ? Number(mediaId) : null
+            };
+
+            try {
+                if (id) {
+                    await apiFetch(templateDetailUrl(id), { method: "PATCH", data: payload });
+                    showToast("Template atualizado.");
+                } else {
+                    await apiFetch(API.templates, { method: "POST", data: payload });
+                    showToast("Template criado.");
+                }
+                templateModal.hide();
+                await loadTemplates();
+                await loadCampaigns();
+            } catch (err) {
+                showToast(`Erro ao salvar template: ${parseError(err)}`, "danger");
+            }
+        }
+
+        async function deleteTemplate(id) {
+            if (!confirm("Excluir este template?")) return;
+
+            try {
+                await apiFetch(templateDetailUrl(id), { method: "DELETE" });
+                showToast("Template excluído.");
+                await loadTemplates();
+                await loadCampaigns();
+            } catch (err) {
+                showToast(`Erro ao excluir template: ${parseError(err)}`, "danger");
+            }
+        }
+
+        // -------------------------
+        // GROUPS
+        // -------------------------
+        async function loadGroups() {
+            try {
+                const payload = await apiFetch(API.groups);
+                state.groups = parseListPayload(payload);
+                renderGroupsTable();
+                populateGroupSelects();
+                populateCampaignGroupSelect();
+                renderDashboardFromState();
+            } catch (err) {
+                showToast(`Erro ao carregar grupos: ${parseError(err)}`, "danger");
+            }
+        }
+
+        function groupContactsCount(g) {
+            if (typeof g.contacts_count !== "undefined") return ensureNumber(g.contacts_count, 0);
+            if (typeof g.total_contacts !== "undefined") return ensureNumber(g.total_contacts, 0);
+            if (Array.isArray(g.contacts)) return g.contacts.length;
+            return 0;
+        }
+
+        function renderGroupsTable() {
+            const tbody = document.getElementById("groups-tbody");
+
+            if (!state.groups.length) {
+                tbody.innerHTML = `<tr><td colspan="4"><div class="empty-box m-2">Nenhum grupo cadastrado.</div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = state.groups.map(g => `
+                <tr>
+                    <td>#${escapeHtml(g.id)}</td>
+                    <td>
+                        <div class="fw-semibold">${escapeHtml(g.name || "-")}</div>
+                        <div class="small text-muted text-truncate" style="max-width: 340px;">${escapeHtml(g.description || "")}</div>
+                    </td>
+                    <td><span class="badge bg-info text-dark">${groupContactsCount(g)}</span></td>
+                    <td>
+                        <div class="row-actions">
+                            <button class="btn btn-sm btn-outline-primary" onclick="openGroupModal(${Number(g.id)})">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteGroup(${Number(g.id)})">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        function openGroupModal(id = null) {
+            const title = document.getElementById("groupModalTitle");
+            const submitBtn = document.getElementById("group-submit-btn");
+
+            if (!id) {
+                document.getElementById("gm-id").value = "";
+                document.getElementById("gm-name").value = "";
+                document.getElementById("gm-description").value = "";
+                document.getElementById("gm-raw-numbers").value = "";
+                title.textContent = "Novo grupo";
+                submitBtn.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i> Salvar grupo`;
+            } else {
+                const g = state.groups.find(x => Number(x.id) === Number(id));
+                if (!g) {
+                    showToast("Grupo não encontrado.", "warning");
+                    return;
+                }
+
+                document.getElementById("gm-id").value = g.id;
+                document.getElementById("gm-name").value = g.name || "";
+                document.getElementById("gm-description").value = g.description || "";
+                document.getElementById("gm-raw-numbers").value = "";
+                title.textContent = `Editar grupo #${g.id}`;
+                submitBtn.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i> Atualizar grupo`;
+            }
+
+            groupModal.show();
+        }
+
+        async function onGroupSubmit(e) {
+            e.preventDefault();
+
+            const id = document.getElementById("gm-id").value;
+            const name = document.getElementById("gm-name").value.trim();
+            const description = document.getElementById("gm-description").value;
+            const rawNumbers = document.getElementById("gm-raw-numbers").value;
+
+            if (!name) {
+                showToast("Informe o nome do grupo.", "warning");
+                return;
+            }
+
+            const payload = { name, description, raw_numbers: rawNumbers };
+
+            try {
+                if (id) {
+                    await apiFetch(groupDetailUrl(id), { method: "PATCH", data: payload });
+                    showToast("Grupo atualizado.");
+                } else {
+                    await apiFetch(API.groups, { method: "POST", data: payload });
+                    showToast("Grupo criado.");
+                }
+                groupModal.hide();
+                await loadGroups();
+                await loadCampaigns();
+            } catch (err) {
+                showToast(`Erro ao salvar grupo: ${parseError(err)}`, "danger");
+            }
+        }
+
+        async function deleteGroup(id) {
+            if (!confirm("Excluir este grupo?")) return;
+
+            try {
+                await apiFetch(groupDetailUrl(id), { method: "DELETE" });
+                showToast("Grupo excluído.");
+                await loadGroups();
+                await loadCampaigns();
+            } catch (err) {
+                showToast(`Erro ao excluir grupo: ${parseError(err)}`, "danger");
+            }
+        }
+
+        function populateGroupSelects() {
+            const syncSel = document.getElementById("sync-group-id");
+            const old = syncSel.value;
+
+            syncSel.innerHTML = `<option value="">Selecione...</option>` + state.groups.map(g =>
+                `<option value="${g.id}">#${g.id} - ${escapeHtml(g.name)} (${groupContactsCount(g)} contatos)</option>`
+            ).join("");
+
+            if (old && Array.from(syncSel.options).some(o => o.value === old)) {
+                syncSel.value = old;
+            }
+        }
+
+        async function onGroupSyncSubmit(e) {
+            e.preventDefault();
+
+            const groupId = document.getElementById("sync-group-id").value;
+            const mode = document.getElementById("sync-mode").value || "append";
+            const raw = document.getElementById("sync-raw-numbers").value;
+
+            if (!groupId) {
+                showToast("Selecione um grupo.", "warning");
+                return;
+            }
+            if (!raw.trim()) {
+                showToast("Informe números/JIDs para sincronizar.", "warning");
+                return;
+            }
+
+            try {
+                await apiFetch(groupSyncUrl(groupId), {
+                    method: "POST",
+                    data: { mode, raw_numbers: raw }
+                });
+                showToast("Contatos sincronizados com sucesso.");
+                document.getElementById("sync-raw-numbers").value = "";
+                await loadGroups();
+            } catch (err) {
+                showToast(`Erro na sincronização: ${parseError(err)}`, "danger");
+            }
+        }
+
+        // -------------------------
+        // CAMPAIGNS
+        // -------------------------
+        async function loadCampaigns() {
+            try {
+                const payload = await apiFetch(API.campaigns);
+                state.campaigns = parseListPayload(payload);
+                renderCampaignsTable();
+                populateQueueCampaignSelect();
+                populateWorkerCampaignSelect();
+                renderDashboardFromState();
+            } catch (err) {
+                showToast(`Erro ao carregar campanhas: ${parseError(err)}`, "danger");
+            }
+        }
+
+        function campaignInstanceLabel(c) {
+            return (
+                c.instance_name ||
+                c.instance_label ||
+                c.instance?.name ||
+                c.instance?.session_id ||
+                c.instance_id ||
+                "-"
+            );
+        }
+
+        function normalizeIds(list) {
+            if (!Array.isArray(list)) return [];
+            return list
+                .map(x => (typeof x === "object" && x !== null ? x.id : x))
+                .filter(Boolean)
+                .map(String);
+        }
+
+        function setMultiSelectValues(selectEl, values) {
+            const set = new Set((values || []).map(String));
+            Array.from(selectEl.options).forEach(opt => {
+                opt.selected = set.has(String(opt.value));
+            });
+        }
+
+        function renderCampaignsTable() {
+            const tbody = document.getElementById("campaigns-tbody");
+
+            if (!state.campaigns.length) {
+                tbody.innerHTML = `<tr><td colspan="6"><div class="empty-box m-2">Nenhuma campanha criada.</div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = state.campaigns.map(c => {
+                const st = String(c.status || "DRAFT");
+                const color = STATUS_COLORS[st] || "secondary";
+
+                return `
+                    <tr>
+                        <td>#${escapeHtml(c.id)}</td>
+                        <td>
+                            <div class="fw-semibold">${escapeHtml(c.name || "-")}</div>
+                            <div class="small text-muted">Início: ${formatDate(c.start_at)}</div>
+                        </td>
+                        <td><span class="badge bg-${color}">${escapeHtml(st)}</span></td>
+                        <td><span class="badge-soft">${escapeHtml(campaignInstanceLabel(c))}</span></td>
+                        <td class="small">
+                            <div>Planned: <strong>${ensureNumber(c.total_planned, 0)}</strong></div>
+                            <div>Sent: <strong class="text-success">${ensureNumber(c.total_sent, 0)}</strong></div>
+                            <div>Failed: <strong class="text-danger">${ensureNumber(c.total_failed, 0)}</strong></div>
+                        </td>
+                        <td>
+                            <div class="row-actions">
+                                <button class="btn btn-sm btn-outline-primary" onclick="openCampaignModal(${Number(c.id)})" title="Editar">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning" onclick="duplicateCampaign(${Number(c.id)})" title="Duplicar">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="openCampaignQueue(${Number(c.id)})" title="Fila">
+                                    <i class="fa-solid fa-list"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" onclick="campaignAction(${Number(c.id)}, 'start')" title="Start">
+                                    <i class="fa-solid fa-play"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-dark" onclick="campaignAction(${Number(c.id)}, 'pause')" title="Pause">
+                                    <i class="fa-solid fa-pause"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="campaignAction(${Number(c.id)}, 'resume')" title="Resume">
+                                    <i class="fa-solid fa-forward"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="campaignAction(${Number(c.id)}, 'cancel')" title="Cancel">
+                                    <i class="fa-solid fa-ban"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        function populateCampaignTemplateSelect() {
+            const sel = document.getElementById("cm-template-ids");
+            const current = Array.from(sel.selectedOptions).map(o => String(o.value));
+
+            sel.innerHTML = state.templates.map(t => {
+                const label = t.is_active ? "Ativo" : "Inativo";
+                return `<option value="${t.id}">#${t.id} - ${escapeHtml(t.name)} (${label})</option>`;
+            }).join("");
+
+            setMultiSelectValues(sel, current);
+        }
+
+        function populateCampaignGroupSelect() {
+            const sel = document.getElementById("cm-group-ids");
+            const current = Array.from(sel.selectedOptions).map(o => String(o.value));
+
+            sel.innerHTML = state.groups.map(g => {
+                return `<option value="${g.id}">#${g.id} - ${escapeHtml(g.name)} (${groupContactsCount(g)} contatos)</option>`;
+            }).join("");
+
+            setMultiSelectValues(sel, current);
+        }
+
+        function openCampaignModal(id = null, copyMode = false) {
+            const title = document.getElementById("campaignModalTitle");
+            const submitBtn = document.getElementById("campaign-submit-btn");
+
+            populateCampaignTemplateSelect();
+            populateCampaignGroupSelect();
+
+            if (!id) {
+                document.getElementById("cm-id").value = "";
+                document.getElementById("cm-name").value = "";
+                document.getElementById("cm-instance-id").value = "";
+                document.getElementById("cm-start-at").value = "";
+                document.getElementById("cm-min-delay").value = 20;
+                document.getElementById("cm-max-delay").value = 45;
+                document.getElementById("cm-mpr").value = 1;
+                document.getElementById("cm-use-name").checked = true;
+                document.getElementById("cm-raw-numbers").value = "";
+                setMultiSelectValues(document.getElementById("cm-template-ids"), []);
+                setMultiSelectValues(document.getElementById("cm-group-ids"), []);
+                title.textContent = "Nova campanha";
+                submitBtn.innerHTML = `<i class="fa-solid fa-paper-plane me-1"></i> Salvar campanha`;
+            } else {
+                const c = state.campaigns.find(x => Number(x.id) === Number(id));
+                if (!c) {
+                    showToast("Campanha não encontrada.", "warning");
+                    return;
+                }
+
+                document.getElementById("cm-id").value = copyMode ? "" : c.id;
+                document.getElementById("cm-name").value = copyMode ? `${c.name || "Campanha"} (cópia)` : (c.name || "");
+                document.getElementById("cm-instance-id").value = c.instance_id ? String(c.instance_id) : "";
+                document.getElementById("cm-start-at").value = "";
+                document.getElementById("cm-min-delay").value = ensureNumber(c.min_delay_seconds, 20);
+                document.getElementById("cm-max-delay").value = ensureNumber(c.max_delay_seconds, 45);
+                document.getElementById("cm-mpr").value = ensureNumber(c.messages_per_recipient, 1);
+                document.getElementById("cm-use-name").checked = !!(c.use_name_placeholder ?? true);
+                document.getElementById("cm-raw-numbers").value = c.raw_numbers || "";
+
+                setMultiSelectValues(document.getElementById("cm-template-ids"), normalizeIds(c.templates));
+                setMultiSelectValues(document.getElementById("cm-group-ids"), normalizeIds(c.groups));
+
+                if (copyMode) {
+                    title.textContent = `Duplicar campanha #${c.id}`;
+                    submitBtn.innerHTML = `<i class="fa-solid fa-paper-plane me-1"></i> Criar cópia`;
+                } else {
+                    title.textContent = `Editar campanha #${c.id}`;
+                    submitBtn.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i> Atualizar campanha`;
+                }
+            }
+
+            campaignModal.show();
+        }
+
+        function duplicateCampaign(id) {
+            openCampaignModal(id, true);
+        }
+
+        async function onCampaignSubmit(e) {
+            e.preventDefault();
+
+            const id = document.getElementById("cm-id").value;
+            const name = document.getElementById("cm-name").value.trim();
+            const instanceId = document.getElementById("cm-instance-id").value;
+            const startAt = document.getElementById("cm-start-at").value;
+            const minDelay = ensureNumber(document.getElementById("cm-min-delay").value, 0);
+            const maxDelay = ensureNumber(document.getElementById("cm-max-delay").value, 0);
+            const mpr = ensureNumber(document.getElementById("cm-mpr").value, 1);
+            const useName = document.getElementById("cm-use-name").checked;
+            const rawNumbers = document.getElementById("cm-raw-numbers").value;
+
+            const templateIds = Array.from(document.getElementById("cm-template-ids").selectedOptions).map(o => Number(o.value));
+            const groupIds = Array.from(document.getElementById("cm-group-ids").selectedOptions).map(o => Number(o.value));
+
+            if (!name) {
+                showToast("Informe o nome da campanha.", "warning");
+                return;
+            }
+
+            if (!instanceId) {
+                showToast("Selecione uma instância CONNECTED.", "warning");
+                return;
+            }
+
+            if (!templateIds.length) {
+                showToast("Selecione pelo menos 1 template.", "warning");
+                return;
+            }
+
+            if (minDelay < 1 || maxDelay < 1 || minDelay > maxDelay) {
+                showToast("Delay inválido. Confira mínimo e máximo (segundos).", "warning");
+                return;
+            }
+
+            const payload = {
+                name,
+                instance_id: Number(instanceId),
+                start_at: startAt ? startAt : null,
+                min_delay_seconds: minDelay,
+                max_delay_seconds: maxDelay,
+                messages_per_recipient: mpr,
+                use_name_placeholder: useName,
+                template_ids: templateIds,
+                group_ids: groupIds,
+                raw_numbers: rawNumbers
+            };
+
+            try {
+                if (id) {
+                    await apiFetch(campaignDetailUrl(id), { method: "PATCH", data: payload });
+                    showToast("Campanha atualizada.");
+                } else {
+                    await apiFetch(API.campaigns, { method: "POST", data: payload });
+                    showToast("Campanha criada.");
+                }
+
+                campaignModal.hide();
+                await loadCampaigns();
+                renderDashboardFromState();
+            } catch (err) {
+                showToast(`Erro ao salvar campanha: ${parseError(err)}`, "danger");
+            }
+        }
+
+        async function campaignAction(id, action) {
+            try {
+                await apiFetch(campaignActionUrl(id, action), { method: "POST", data: {} });
+                showToast(`Ação '${action}' aplicada na campanha #${id}.`);
+                await loadCampaigns();
+
+                const qid = document.getElementById("queue-campaign-id").value;
+                if (qid && String(qid) === String(id)) {
+                    await loadQueue();
+                }
+            } catch (err) {
+                showToast(`Erro na ação ${action}: ${parseError(err)}`, "danger");
+            }
+        }
+
+        function openCampaignQueue(id) {
+            const sel = document.getElementById("queue-campaign-id");
+            sel.value = String(id);
+            showTab("#tab-queue");
+            loadQueue();
+        }
+
+        // -------------------------
+        // QUEUE
+        // -------------------------
+        function populateQueueCampaignSelect() {
+            const sel = document.getElementById("queue-campaign-id");
+            const old = sel.value;
+
+            sel.innerHTML = `<option value="">Selecione...</option>` + state.campaigns.map(c => {
+                return `<option value="${c.id}">#${c.id} - ${escapeHtml(c.name)} [${escapeHtml(c.status || "DRAFT")}]</option>`;
+            }).join("");
+
+            if (old && Array.from(sel.options).some(o => o.value === old)) {
+                sel.value = old;
+            }
+        }
+
+        function populateWorkerCampaignSelect() {
+            const sel = document.getElementById("worker-campaign-id");
+            const old = sel.value;
+
+            sel.innerHTML = `<option value="">Qualquer campanha elegível</option>` + state.campaigns.map(c => {
+                return `<option value="${c.id}">#${c.id} - ${escapeHtml(c.name)} [${escapeHtml(c.status || "DRAFT")}]</option>`;
+            }).join("");
+
+            if (old && Array.from(sel.options).some(o => o.value === old)) {
+                sel.value = old;
+            }
+        }
+
+        async function loadQueue() {
+            const campaignId = document.getElementById("queue-campaign-id").value;
+            if (!campaignId) {
+                showToast("Selecione uma campanha para consultar a fila.", "warning");
+                return;
+            }
+
+            const status = document.getElementById("queue-status").value;
+            let limit = ensureNumber(document.getElementById("queue-limit").value, 200);
+            if (limit < 1) limit = 1;
+            if (limit > 1000) limit = 1000;
+
+            const params = new URLSearchParams();
+            if (status) params.set("status", status);
+            params.set("limit", String(limit));
+            const qs = params.toString() ? `?${params.toString()}` : "";
+
+            try {
+                const payload = await apiFetch(campaignQueueUrl(campaignId, qs));
+                state.queueItems = Array.isArray(payload?.items) ? payload.items : [];
+                state.queueCampaign = payload?.campaign || null;
+                renderQueueCampaignSummary();
+                renderQueueTable();
+            } catch (err) {
+                showToast(`Erro ao carregar fila: ${parseError(err)}`, "danger");
+            }
+        }
+
+        function renderQueueCampaignSummary() {
+            const el = document.getElementById("queue-campaign-summary");
+            const c = state.queueCampaign;
+
+            if (!c) {
+                el.innerHTML = "Nenhuma campanha carregada.";
+                return;
+            }
+
+            const st = String(c.status || "DRAFT");
+            const color = STATUS_COLORS[st] || "secondary";
+
+            el.innerHTML = `
+                <div><strong>#${escapeHtml(c.id)} - ${escapeHtml(c.name || "")}</strong></div>
+                <div class="mt-1">Status: <span class="badge bg-${color}">${escapeHtml(st)}</span></div>
+                <div class="mt-1">Planned: <strong>${ensureNumber(c.total_planned, 0)}</strong> |
+                    Sent: <strong class="text-success">${ensureNumber(c.total_sent, 0)}</strong> |
+                    Failed: <strong class="text-danger">${ensureNumber(c.total_failed, 0)}</strong>
+                </div>
+            `;
+        }
+
+        function renderQueueTable() {
+            const tbody = document.getElementById("queue-tbody");
+
+            if (!state.queueItems.length) {
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-box m-2">Sem itens para o filtro atual.</div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = state.queueItems.map(it => {
+                const st = String(it.status || "QUEUED");
+                const color = QSTATUS_COLORS[st] || "secondary";
+
+                const recipient = it.recipient?.phone_number || it.recipient_phone || it.recipient?.jid || it.recipient_jid || "-";
+                const templateName = it.template?.name || it.template_name || (it.template ? `#${it.template}` : "-");
+
+                return `
+                    <tr>
+                        <td>#${escapeHtml(it.id)}</td>
+                        <td><span class="badge bg-${color}">${escapeHtml(st)}</span></td>
+                        <td>${escapeHtml(recipient)}</td>
+                        <td>${escapeHtml(templateName)}</td>
+                        <td>${escapeHtml(it.step || "-")}</td>
+                        <td>${formatDate(it.scheduled_at)}</td>
+                        <td>${escapeHtml(it.attempts || 0)}</td>
+                        <td><span class="danger-text-truncate">${escapeHtml(it.error_text || "-")}</span></td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        // -------------------------
+        // WORKER
+        // -------------------------
+        async function runWorkerQuick() {
+            try {
+                const payload = await apiFetch(API.worker, {
+                    method: "POST",
+                    data: { max_instances: 3 }
+                });
+                document.getElementById("worker-result").textContent = JSON.stringify(payload, null, 2);
+                showToast("Worker executado.");
+                await loadCampaigns();
+
+                const selectedCampaign = document.getElementById("queue-campaign-id").value;
+                if (selectedCampaign) await loadQueue();
+            } catch (err) {
+                showToast(`Erro ao processar fila: ${parseError(err)}`, "danger");
+            }
+        }
+
+        async function onWorkerSubmit(e) {
+            e.preventDefault();
+
+            const instanceId = document.getElementById("worker-instance-id").value;
+            const campaignId = document.getElementById("worker-campaign-id").value;
+            let maxInstances = ensureNumber(document.getElementById("worker-max-instances").value, 3);
+
+            if (maxInstances < 1) maxInstances = 1;
+            if (maxInstances > 20) maxInstances = 20;
+
+            const payload = { max_instances: maxInstances };
+            if (instanceId) payload.instance_id = Number(instanceId);
+            if (campaignId) payload.campaign_id = Number(campaignId);
+
+            try {
+                const data = await apiFetch(API.worker, { method: "POST", data: payload });
+                document.getElementById("worker-result").textContent = JSON.stringify(data, null, 2);
+                showToast("Worker executado com sucesso.");
+                await loadCampaigns();
+
+                const selectedCampaign = document.getElementById("queue-campaign-id").value;
+                if (selectedCampaign) await loadQueue();
+            } catch (err) {
+                document.getElementById("worker-result").textContent = parseError(err);
+                showToast(`Erro no worker: ${parseError(err)}`, "danger");
+            }
+        }
+
+        // -------------------------
+        // FULL RELOAD
+        // -------------------------
+        async function reloadAll() {
+            await Promise.all([
+                loadTemplates(),
+                loadGroups(),
+                loadCampaigns()
+            ]);
+            renderMediaLibrary();
+            showToast("Painel atualizado.");
+        }
+
+        // -------------------------
+        // INIT
+        // -------------------------
+        async function initPage() {
+            templateModal = new bootstrap.Modal(document.getElementById("templateModal"));
+            groupModal = new bootstrap.Modal(document.getElementById("groupModal"));
+            campaignModal = new bootstrap.Modal(document.getElementById("campaignModal"));
+            mediaUploadModal = new bootstrap.Modal(document.getElementById("mediaUploadModal"));
+
+            state.mediaFiles = getInitialMediaFiles();
+            renderMediaLibrary();
+            populateTemplateMediaSelect();
+
+            document.getElementById("template-form").addEventListener("submit", onTemplateSubmit);
+            document.getElementById("group-form").addEventListener("submit", onGroupSubmit);
+            document.getElementById("campaign-form").addEventListener("submit", onCampaignSubmit);
+            document.getElementById("worker-form").addEventListener("submit", onWorkerSubmit);
+            document.getElementById("group-sync-form").addEventListener("submit", onGroupSyncSubmit);
+            document.getElementById("media-upload-form").addEventListener("submit", onMediaUploadSubmit);
+
+            await reloadAll();
+        }
+
+        document.addEventListener("DOMContentLoaded", initPage);
+    </script>
+</body>
+</html>

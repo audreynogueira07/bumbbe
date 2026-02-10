@@ -32,9 +32,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'fillow',
     'chatbot',
-    'wpbot',
-    'flowbot',
     'django_filters',
+    'rest_framework',
 
 ]
 

@@ -1,0 +1,86 @@
+{% extends "adsmanager/base.html" %}
+{% block title %}Agendar Otimização | Bumbbe Ads{% endblock %}
+{% block subtitle %}Otimização{% endblock %}
+{% block header_title %}Agendamento de Otimização{% endblock %}
+
+{% block header_actions %}
+    <a href="{% url 'adsmanager:dashboard' %}" class="btn btn-outline-secondary btn-lg">
+        <i class="fas fa-arrow-left me-2"></i>Voltar
+    </a>
+{% endblock %}
+
+{% block content %}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="bb-card">
+            <div class="bb-header">
+                <div class="fw-bold">Agendar</div>
+                <div class="text-muted small">Salva o agendamento no banco. Para rodar automático, ative o worker (Celery/cron).</div>
+            </div>
+            <div class="bb-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger border-0 shadow-sm">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Intervalo (minutos)</label>
+                        {{ form.interval_minutes.as_widget(attrs={"class":"form-control", "placeholder":"Ex.: 60"}) }}
+                        {% if form.interval_minutes.errors %}<div class="text-danger small mt-1">{{ form.interval_minutes.errors }}</div>{% endif %}
+                        <div class="text-muted small mt-2">Recomendado: 60 a 180 min para orçamento pequeno.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-4">
+                        {{ form.active.as_widget(attrs={"class":"form-check-input"}) }}
+                        <label class="form-check-label fw-semibold">Ativo</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-purple btn-lg">
+                        <i class="fas fa-save me-2"></i>Salvar Agendamento
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="bb-card">
+            <div class="bb-header">
+                <div class="fw-bold">Campanha</div>
+                <div class="text-muted small">Resumo da campanha local.</div>
+            </div>
+            <div class="bb-body">
+                <div class="mb-2"><span class="small text-muted">Nome</span><div class="fw-bold">{{ campaign.name }}</div></div>
+                <div class="mb-2"><span class="small text-muted">Status</span><div class="fw-bold">{{ campaign.status }}</div></div>
+                <div class="mb-2"><span class="small text-muted">Orçamento (micros)</span><div class="fw-bold">{{ campaign.budget_micros|default:"—" }}</div></div>
+
+                <div class="mt-3">
+                    {% if campaign.economic_mode %}
+                        <span class="badge-pill bg-ok"><i class="fas fa-leaf me-1"></i>Modo econômico</span>
+                    {% else %}
+                        <span class="badge-pill bg-warn"><i class="fas fa-sliders me-1"></i>Modo normal</span>
+                    {% endif %}
+                </div>
+
+                <hr class="my-4">
+
+                <form method="post" action="{% url 'adsmanager:optimise' campaign.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-purple w-100">
+                        <i class="fas fa-bolt me-2"></i>Otimizar agora
+                    </button>
+                </form>
+                <div class="text-muted small mt-2">
+                    Isso executa a otimização manual uma vez e registra o resultado.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

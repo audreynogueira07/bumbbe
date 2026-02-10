@@ -1,0 +1,48 @@
+{% extends "adsmanager/base.html" %}
+{% block title %}Criativo | Bumbbe Ads{% endblock %}
+{% block subtitle %}Tráfego Pago{% endblock %}
+{% block header_title %}{% if form.instance and form.instance.pk %}Editar Criativo{% else %}Novo Criativo{% endif %}{% endblock %}
+
+{% block header_actions %}
+    <a href="/adsmanager/creatives/" class="btn btn-light btn-lg border">
+        <i class="fas fa-arrow-left me-2"></i>Voltar
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-9">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="p-4 border-bottom d-flex align-items-center gap-3" style="background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);">
+                <div class="rounded-3 d-flex align-items-center justify-content-center" style="width:46px;height:46px;background: rgba(255,117,31,0.12); color: var(--brand-orange);">
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0">Criativo</h5>
+                    <small class="text-muted">Texto, mídia e destino. Depois a IA cria variações para testes.</small>
+                </div>
+            </div>
+
+            <div class="p-4">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        {% for field in form %}
+                            <div class="{% if field.name in 'primary_text,headline,description' %}col-12{% else %}col-md-6{% endif %}">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                                {% for err in field.errors %}<div class="text-danger small mt-1">{{ err }}</div>{% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a href="/adsmanager/creatives/" class="btn btn-light border rounded-pill px-4">Cancelar</a>
+                        <button class="btn btn-purple rounded-pill px-4" type="submit"><i class="fas fa-save me-2"></i>Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,458 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Disparador • Grupos | {{ instance.name|default:"Bumbbe Chat" }}</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        :root { --bg:#F4F5FA; --text:#111827; }
+        body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); }
+        .main-panel { margin-left:280px; min-height:100vh; padding:2rem; transition:.3s; }
+        .card-soft { border:0; box-shadow:0 4px 14px rgba(15,23,42,.06); border-radius:14px; }
+        .nav-pills .nav-link { color:#4b5563; }
+        .nav-pills .nav-link.active { background:#111827; color:#fff; }
+        .table thead th { font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; }
+        .toast-container { position:fixed; bottom:20px; right:20px; z-index:9999; }
+        .chip { display:inline-flex; align-items:center; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:999px; padding:.2rem .6rem; font-size:.78rem; margin:.15rem; }
+        @media (max-width:991px){ .main-panel{ margin-left:0; padding:1rem; } }
+    </style>
+</head>
+<body>
+    {% include 'fillow/elements/sidebar.html' %}
+
+    <div class="main-panel">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div>
+                <h3 class="fw-bold mb-1"><i class="fas fa-users text-info me-2"></i>Grupos de Contatos</h3>
+                <div class="text-muted small">Organize destinatários por lista para reutilizar em campanhas.</div>
+            </div>
+            <button class="btn btn-outline-dark" id="btn-refresh">
+                <i class="fas fa-rotate me-1"></i> Atualizar
+            </button>
+        </div>
+
+        <div class="card card-soft mb-4">
+            <div class="card-body p-2">
+                <ul class="nav nav-pills">
+                    <li class="nav-item"><a class="nav-link" href="{{ dispatch_nav.dashboard|default:'/fillow/disparador/' }}">Visão geral</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ dispatch_nav.templates|default:'/fillow/disparador/templates/' }}">Templates</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="{{ dispatch_nav.groups|default:'/fillow/disparador/grupos/' }}">Grupos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ dispatch_nav.campaigns|default:'/fillow/disparador/campanhas/' }}">Campanhas</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ dispatch_nav.queue|default:'/fillow/disparador/fila/' }}">Fila</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-12 col-xl-4">
+                <div class="card card-soft">
+                    <div class="card-header bg-white border-0">
+                        <h6 class="fw-bold mb-0">Novo grupo</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="group-form">
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Nome do grupo</label>
+                                <input type="text" class="form-control" id="grp-name" required placeholder="Ex.: Leads Fevereiro">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Descrição</label>
+                                <textarea class="form-control" id="grp-description" rows="3" placeholder="Origem dos contatos, contexto da campanha etc."></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Contatos iniciais (um por linha)</label>
+                                <textarea class="form-control" id="grp-phones" rows="5" placeholder="5511999990001&#10;5511999990002&#10;5511999990003"></textarea>
+                                <small class="text-muted">Aceita também com separação por vírgula/;.</small>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100" id="btn-save-group">
+                                <i class="fas fa-plus me-1"></i> Criar grupo
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card card-soft mt-3">
+                    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold mb-0">Adicionar contato</h6>
+                        <span class="badge text-bg-light border" id="selected-group">Nenhum grupo</span>
+                    </div>
+                    <div class="card-body">
+                        <form id="contact-form">
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">Telefone</label>
+                                <input type="text" class="form-control" id="ctc-phone" placeholder="5511999998888" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">Nome (opcional)</label>
+                                <input type="text" class="form-control" id="ctc-name" placeholder="Nome do contato">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Metadados JSON (opcional)</label>
+                                <textarea class="form-control" id="ctc-meta" rows="2" placeholder='{"empresa":"ACME","tag":"vip"}'></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-user-plus me-1"></i> Adicionar ao grupo selecionado
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-8">
+                <div class="card card-soft">
+                    <div class="card-body">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-7">
+                                <input type="text" class="form-control" id="search" placeholder="Buscar grupo por nome...">
+                            </div>
+                            <div class="col-md-5 d-grid">
+                                <button class="btn btn-outline-dark" id="btn-sync-selected">
+                                    <i class="fas fa-cloud-arrow-down me-1"></i> Sincronizar grupo selecionado
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Grupo</th>
+                                        <th>Contatos</th>
+                                        <th>Criado</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbl-groups">
+                                    <tr><td colspan="4" class="text-center text-muted py-4">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <hr>
+                        <h6 class="fw-bold mb-2">Contatos do grupo selecionado</h6>
+                        <div id="group-contacts">
+                            <div class="text-muted">Selecione um grupo para visualizar os contatos.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-container">
+        <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body" id="toastMessage"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_ROOT = ("{{ dispatch_api_base|default:'/api/v1/dispatch' }}").replace(/\/$/, "");
+        const ENDPOINTS = {
+            groups: `${API_ROOT}/groups/`
+        };
+
+        let groups = [];
+        let selectedGroupId = null;
+
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(";").shift();
+            return "";
+        }
+        const csrfToken = "{{ csrf_token }}" || getCookie("csrftoken");
+
+        function showToast(message, type = "success") {
+            const el = document.getElementById("liveToast");
+            document.getElementById("toastMessage").textContent = message;
+            el.className = `toast align-items-center text-white border-0 bg-${type}`;
+            new bootstrap.Toast(el).show();
+        }
+
+        function normalizeList(payload) {
+            if (Array.isArray(payload)) return payload;
+            if (Array.isArray(payload?.results)) return payload.results;
+            if (Array.isArray(payload?.items)) return payload.items;
+            if (Array.isArray(payload?.data)) return payload.data;
+            return [];
+        }
+
+        async function apiFetch(url, options = {}) {
+            const headers = options.headers || {};
+            const cfg = {
+                ...options,
+                headers: { "X-CSRFToken": csrfToken, ...headers },
+                credentials: "same-origin",
+                cache: "no-store"
+            };
+            const resp = await fetch(url, cfg);
+            const text = await resp.text();
+            let data;
+            try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+            if (!resp.ok) throw new Error(data?.detail || data?.message || `Erro ${resp.status}`);
+            return data;
+        }
+
+        function fmtDate(value) {
+            if (!value) return "-";
+            const d = new Date(value);
+            if (isNaN(d.getTime())) return value;
+            return d.toLocaleDateString("pt-BR");
+        }
+
+        function parsePhones(raw) {
+            return (raw || "")
+                .replaceAll(";", "\n")
+                .replaceAll(",", "\n")
+                .split("\n")
+                .map(v => v.trim())
+                .filter(Boolean);
+        }
+
+        function getGroupContactsCount(group) {
+            return group.contacts_count ?? group.total_contacts ?? (Array.isArray(group.contacts) ? group.contacts.length : 0);
+        }
+
+        function renderGroups() {
+            const query = document.getElementById("search").value.trim().toLowerCase();
+            const rows = groups.filter(g => (g.name || "").toLowerCase().includes(query));
+
+            const tbody = document.getElementById("tbl-groups");
+            if (!rows.length) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Nenhum grupo encontrado.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = rows.map(g => `
+                <tr>
+                    <td>
+                        <div class="fw-semibold">${g.name || `Grupo #${g.id}`}</div>
+                        <div class="small text-muted">${g.description || "Sem descrição"}</div>
+                    </td>
+                    <td><span class="badge text-bg-secondary">${getGroupContactsCount(g)}</span></td>
+                    <td class="small text-muted">${fmtDate(g.created_at || g.created)}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary me-1" data-action="select" data-id="${g.id}">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${g.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        function renderSelectedBadge() {
+            const el = document.getElementById("selected-group");
+            const group = groups.find(g => Number(g.id) === Number(selectedGroupId));
+            if (!group) {
+                el.className = "badge text-bg-light border";
+                el.textContent = "Nenhum grupo";
+                return;
+            }
+            el.className = "badge text-bg-primary";
+            el.textContent = `${group.name} (#${group.id})`;
+        }
+
+        function renderContacts(groupDetail) {
+            const wrap = document.getElementById("group-contacts");
+            const contacts = normalizeList(groupDetail.contacts || groupDetail.items || groupDetail.data || []);
+            if (!contacts.length) {
+                wrap.innerHTML = `<div class="text-muted">Este grupo ainda não possui contatos.</div>`;
+                return;
+            }
+
+            wrap.innerHTML = `
+                <div class="d-flex flex-wrap">
+                    ${contacts.map(c => {
+                        const phone = c.phone || c.to || c.number || c.remote_jid || "-";
+                        const name = c.name || c.full_name || "";
+                        return `<span class="chip">${name ? `${name} • ` : ""}${phone}</span>`;
+                    }).join("")}
+                </div>
+            `;
+        }
+
+        async function loadGroups() {
+            try {
+                const data = await apiFetch(ENDPOINTS.groups);
+                groups = normalizeList(data);
+                renderGroups();
+                renderSelectedBadge();
+
+                if (selectedGroupId) {
+                    await loadGroupDetail(selectedGroupId);
+                }
+            } catch (error) {
+                showToast(error.message || "Erro ao carregar grupos.", "danger");
+                document.getElementById("tbl-groups").innerHTML =
+                    `<tr><td colspan="4" class="text-center text-danger py-4">Falha ao carregar grupos.</td></tr>`;
+            }
+        }
+
+        async function loadGroupDetail(id) {
+            try {
+                const detail = await apiFetch(`${ENDPOINTS.groups}${id}/`);
+                renderContacts(detail);
+            } catch (error) {
+                document.getElementById("group-contacts").innerHTML =
+                    `<div class="text-danger">Não foi possível carregar os contatos.</div>`;
+            }
+        }
+
+        async function createGroup(event) {
+            event.preventDefault();
+            const name = document.getElementById("grp-name").value.trim();
+            const description = document.getElementById("grp-description").value.trim();
+            const phones = parsePhones(document.getElementById("grp-phones").value);
+
+            if (!name) {
+                showToast("Informe o nome do grupo.", "danger");
+                return;
+            }
+
+            const payload = { name, description };
+            if (phones.length) {
+                payload.contacts = phones.map(phone => ({ phone }));
+            }
+
+            const btn = document.getElementById("btn-save-group");
+            const old = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Criando...';
+
+            try {
+                const created = await apiFetch(ENDPOINTS.groups, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                showToast("Grupo criado com sucesso.");
+                document.getElementById("group-form").reset();
+                selectedGroupId = created.id ?? null;
+                await loadGroups();
+            } catch (error) {
+                showToast(error.message || "Não foi possível criar o grupo.", "danger");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = old;
+            }
+        }
+
+        async function addContact(event) {
+            event.preventDefault();
+
+            if (!selectedGroupId) {
+                showToast("Selecione um grupo primeiro.", "danger");
+                return;
+            }
+
+            const phone = document.getElementById("ctc-phone").value.trim();
+            const name = document.getElementById("ctc-name").value.trim();
+            const metaRaw = document.getElementById("ctc-meta").value.trim();
+
+            if (!phone) {
+                showToast("Informe o telefone do contato.", "danger");
+                return;
+            }
+
+            let metadata = {};
+            if (metaRaw) {
+                try { metadata = JSON.parse(metaRaw); }
+                catch {
+                    showToast("Metadados devem ser um JSON válido.", "danger");
+                    return;
+                }
+            }
+
+            const payload = { phone, name, metadata };
+
+            try {
+                await apiFetch(`${ENDPOINTS.groups}${selectedGroupId}/contacts/`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                showToast("Contato adicionado.");
+                document.getElementById("contact-form").reset();
+                await loadGroupDetail(selectedGroupId);
+                await loadGroups();
+            } catch (error) {
+                showToast(error.message || "Não foi possível adicionar contato.", "danger");
+            }
+        }
+
+        async function syncSelectedGroup() {
+            if (!selectedGroupId) {
+                showToast("Selecione um grupo primeiro.", "danger");
+                return;
+            }
+
+            try {
+                // Endpoint esperado: /groups/{id}/sync-contacts/
+                await apiFetch(`${ENDPOINTS.groups}${selectedGroupId}/sync-contacts/`, {
+                    method: "POST"
+                });
+                showToast("Sincronização iniciada.");
+                setTimeout(loadGroups, 1000);
+            } catch (error) {
+                showToast(error.message || "Falha ao sincronizar grupo.", "danger");
+            }
+        }
+
+        async function deleteGroup(id) {
+            if (!confirm("Deseja excluir este grupo? Esta ação não pode ser desfeita.")) return;
+            try {
+                await apiFetch(`${ENDPOINTS.groups}${id}/`, { method: "DELETE" });
+                showToast("Grupo removido.");
+                if (Number(selectedGroupId) === Number(id)) {
+                    selectedGroupId = null;
+                    document.getElementById("group-contacts").innerHTML =
+                        `<div class="text-muted">Selecione um grupo para visualizar os contatos.</div>`;
+                }
+                await loadGroups();
+            } catch (error) {
+                showToast(error.message || "Não foi possível remover o grupo.", "danger");
+            }
+        }
+
+        document.getElementById("group-form").addEventListener("submit", createGroup);
+        document.getElementById("contact-form").addEventListener("submit", addContact);
+        document.getElementById("search").addEventListener("input", renderGroups);
+        document.getElementById("btn-sync-selected").addEventListener("click", syncSelectedGroup);
+        document.getElementById("btn-refresh").addEventListener("click", loadGroups);
+
+        document.getElementById("tbl-groups").addEventListener("click", async (e) => {
+            const btn = e.target.closest("button[data-action]");
+            if (!btn) return;
+            const action = btn.dataset.action;
+            const id = Number(btn.dataset.id);
+
+            if (action === "select") {
+                selectedGroupId = id;
+                renderSelectedBadge();
+                await loadGroupDetail(id);
+            } else if (action === "delete") {
+                await deleteGroup(id);
+            }
+        });
+
+        document.addEventListener("DOMContentLoaded", loadGroups);
+    </script>
+</body>
+</html>

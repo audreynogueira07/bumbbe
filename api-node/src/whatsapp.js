@@ -1,27 +1,21 @@
+// whatsapp.js
 /*
- * whatsapp_robust.js — versão corrigida para 2025
+ * whatsapp.js — hotfix de performance/estabilidade para QR (Baileys)
  *
- * Este módulo expõe uma API robusta para gerenciar sessões do WhatsApp
- * através da biblioteca Baileys. A intenção aqui é fornecer um canal
- * único para todas as informações que a Baileys é capaz de enviar,
- * expondo-as através de um mecanismo de broadcast (via WebSocket ou
- * outro canal).
- *
- * MODIFICAÇÕES RECENTES:
- * - Fixação da versão do WhatsApp Web para evitar instabilidades.
- * - Ajuste na configuração do browser via 'Browsers.appropriate'.
- * - Desativação da sincronização completa de histórico ('syncFullHistory')
- *   para otimizar o startup e evitar loops de dados antigos.
- * - Adicionado envio opcional de eventos para um webhook HTTP (Django),
- *   sem quebrar a API existente baseada em WebSocket.
+ * Principais objetivos:
+ * - QR aparecer rápido (emite texto imediatamente)
+ * - geração de imagem do QR em paralelo (sem bloquear)
+ * - reduzir ruído de webhook quando backend HTTP está fora do ar
+ * - manter compatibilidade com WebSocket/painel existente
  */
 
 const {
   default: makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
-  Browsers // IMPORTANTE: para configurar o browser de forma compatível
+  Browsers
 } = require('@whiskeysockets/baileys');
+
 const pino = require('pino');
 const path = require('path');
 const fs = require('fs-extra');
@@ -29,62 +23,156 @@ const qrcode = require('qrcode');
 const { randomBytes } = require('crypto');
 const axios = require('axios');
 
-// Fallback broadcast importado para quando nenhuma função personalizada é injetada
 const { broadcast: fallbackBroadcast } = require('./websocket');
 
-// Mapeia sessionId -> dados da sessão
+// sessionId -> session data
 const sessions = new Map();
 
-// Logger configurado com pino-pretty para melhor depuração
 const logger = pino({
   transport: { target: 'pino-pretty' },
   level: process.env.LOG_LEVEL || 'info'
 });
 
-// Diretório onde as credenciais de autenticação de cada sessão são armazenadas
+logger.info('[BOOT] whatsapp.js hotfix carregado (2026-02-09).');
+
 const AUTH_DIR = path.join(__dirname, 'auth');
 fs.ensureDirSync(AUTH_DIR);
 
-// Configuração do webhook HTTP (por exemplo, Django)
-// Se não houver URL, o webhook fica desativado e NADA muda para outros serviços.
-const DJANGO_WEBHOOK_URL =
+// ============================================================================
+// WEBHOOK HTTP (OPCIONAL)
+// ============================================================================
+
+const WEBHOOK_URLS_RAW =
+  process.env.WEBHOOK_URLS ||
+  process.env.PROJECT_WEBHOOK_URLS ||
   process.env.DJANGO_WEBHOOK_URL ||
   process.env.DJANGO_WEBHOOK ||
-  null;
+  '';
 
-// A mesma chave usada pelo Django em settings.NODE_API_KEY
-const DJANGO_WEBHOOK_API_KEY =
+const WEBHOOK_URLS = WEBHOOK_URLS_RAW
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const WEBHOOK_API_KEYS_RAW =
+  process.env.WEBHOOK_API_KEYS ||
   process.env.NODE_API_KEY ||
   process.env.DJANGO_WEBHOOK_API_KEY ||
-  null;
+  '';
 
-// ==============================================================================
-// CONFIGURAÇÕES DE QR (OTIMIZAÇÃO DE LATÊNCIA)
-// ==============================================================================
-// QR_IMAGE_MODE:
-// - 'svg'  -> gera uma imagem leve em SVG (data:image/svg+xml) de forma assíncrona (recomendado)
-// - 'png'  -> gera PNG base64 (mais pesado)
-// - 'none' -> NÃO gera imagem, envia apenas o texto do QR (mais rápido)
-const QR_IMAGE_MODE = (process.env.QR_IMAGE_MODE || 'svg').toLowerCase();
+const WEBHOOK_API_KEYS = WEBHOOK_API_KEYS_RAW
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
+
+// IMPORTANTE: default = false para não travar em loop quando backend está fora.
+const WEBHOOK_ENABLED = TRUE_VALUES.has(String(process.env.WEBHOOK_ENABLED || '').toLowerCase());
+
+const WEBHOOK_TIMEOUT_MS = Number.parseInt(process.env.WEBHOOK_TIMEOUT_MS || '2000', 10);
+const WEBHOOK_FAILS_BEFORE_COOLDOWN = Number.parseInt(process.env.WEBHOOK_FAILS_BEFORE_COOLDOWN || '3', 10);
+const WEBHOOK_COOLDOWN_MS = Number.parseInt(process.env.WEBHOOK_COOLDOWN_MS || '300000', 10); // 5min
+const WEBHOOK_LOG_THROTTLE_MS = Number.parseInt(process.env.WEBHOOK_LOG_THROTTLE_MS || '30000', 10);
+
+// Para evitar sobrecarga por padrão no webhook: eventos essenciais
+const WEBHOOK_EVENTS = (process.env.WEBHOOK_EVENTS || 'connection.update,session-update,qr,message')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const WEBHOOK_EVENTS_SET = new Set(WEBHOOK_EVENTS);
+
+const webhookHealth = new Map();
+
+function getWebhookApiKeyForIndex(i) {
+  if (WEBHOOK_API_KEYS.length > 1 && WEBHOOK_API_KEYS[i]) return WEBHOOK_API_KEYS[i];
+  return WEBHOOK_API_KEYS[0] || null;
+}
+
+function getWebhookState(url) {
+  if (!webhookHealth.has(url)) {
+    webhookHealth.set(url, {
+      failures: 0,
+      disabledUntil: 0,
+      lastLogAt: 0
+    });
+  }
+  return webhookHealth.get(url);
+}
+
+function isWebhookDisabled(url) {
+  const st = getWebhookState(url);
+  return Date.now() < st.disabledUntil;
+}
+
+function shouldSendEventToWebhook(eventType) {
+  if (!WEBHOOK_EVENTS_SET.size) return true;
+  return WEBHOOK_EVENTS_SET.has(eventType);
+}
+
+function maybeLogWebhookError(url, errMsg) {
+  const st = getWebhookState(url);
+  const now = Date.now();
+  if (now - st.lastLogAt >= WEBHOOK_LOG_THROTTLE_MS) {
+    st.lastLogAt = now;
+    logger.error({ err: errMsg, url }, '[ERROR] falha ao enviar webhook HTTP para backend');
+  }
+}
+
+function maybeLogWebhookWarn(url, msg) {
+  const st = getWebhookState(url);
+  const now = Date.now();
+  if (now - st.lastLogAt >= WEBHOOK_LOG_THROTTLE_MS) {
+    st.lastLogAt = now;
+    logger.warn({ url }, msg);
+  }
+}
+
+function markWebhookSuccess(url) {
+  const st = getWebhookState(url);
+  st.failures = 0;
+  st.disabledUntil = 0;
+}
+
+function markWebhookFailure(url, err) {
+  const st = getWebhookState(url);
+  st.failures += 1;
+
+  const code = err?.code || err?.errno || err?.name || 'UNKNOWN';
+  const msg = err?.message || String(err);
+  maybeLogWebhookError(url, `${code}: ${msg}`);
+
+  if (st.failures >= WEBHOOK_FAILS_BEFORE_COOLDOWN) {
+    st.disabledUntil = Date.now() + WEBHOOK_COOLDOWN_MS;
+    st.failures = 0;
+    maybeLogWebhookWarn(
+      url,
+      `[WARN] webhook temporariamente desativado por ${Math.round(WEBHOOK_COOLDOWN_MS / 1000)}s devido a falhas repetidas`
+    );
+  }
+}
+
+if (WEBHOOK_URLS.length && !WEBHOOK_ENABLED) {
+  logger.warn('[WARN] WEBHOOK_URLS detectado(s), mas WEBHOOK_ENABLED=false. HTTP webhook desativado.');
+} else if (WEBHOOK_URLS.length && WEBHOOK_ENABLED) {
+  logger.info(`[INFO] Webhook HTTP ativo para ${WEBHOOK_URLS.length} destino(s).`);
+} else {
+  logger.info('[INFO] Webhook HTTP desativado (nenhuma URL configurada).');
+}
+
+// ============================================================================
+// CONFIG QR
+// ============================================================================
+
+// svg: mais leve que png para data URL; none: só texto do qr
+const QR_IMAGE_MODE = (process.env.QR_IMAGE_MODE || 'svg').toLowerCase(); // svg|png|none
 const QR_ERROR_CORRECTION = (process.env.QR_ERROR_CORRECTION || 'L').toUpperCase();
-const QR_MARGIN = Number.isFinite(parseInt(process.env.QR_MARGIN || '1', 10))
-  ? parseInt(process.env.QR_MARGIN || '1', 10)
-  : 1;
-const QR_SCALE = Number.isFinite(parseInt(process.env.QR_SCALE || '4', 10))
-  ? parseInt(process.env.QR_SCALE || '4', 10)
-  : 4;
+const QR_MARGIN = Number.parseInt(process.env.QR_MARGIN || '1', 10);
+const QR_SCALE = Number.parseInt(process.env.QR_SCALE || '4', 10);
 
-// Referência interna para função de broadcast injetada externamente
 let injectedBroadcast = null;
 
-/**
- * Injeta uma função de broadcast personalizada no módulo. Caso seja
- * fornecida, essa função será utilizada para emitir eventos para o
- * painel/cliente; caso contrário, será utilizado o broadcast de
- * websocket padrão.
- *
- * @param {function} broadcastFn Função para transmitir eventos para o painel
- */
 function initialize(broadcastFn) {
   if (typeof broadcastFn === 'function') {
     injectedBroadcast = broadcastFn;
@@ -94,34 +182,20 @@ function initialize(broadcastFn) {
   }
 }
 
-/**
- * Emite um evento para o frontend via mecanismo de broadcast (WebSocket)
- * e, opcionalmente, para um webhook HTTP (ex.: Django).
- *
- * IMPORTANTE:
- * - A assinatura e o comportamento para WebSocket permanecem os mesmos
- *   para não quebrar serviços já existentes.
- * - O envio HTTP é "fire-and-forget": não bloqueia nem altera o fluxo.
- *
- * @param {string} type Nome do evento
- * @param {any} data Dados a serem enviados
- */
 function emit(type, data) {
-  // 1) Broadcast normal (WebSocket) — comportamento antigo preservado
+  // 1) WebSocket (fluxo principal)
   try {
     const b = injectedBroadcast || fallbackBroadcast || (() => {});
     b(type, data);
   } catch (err) {
-    logger.error({ err }, '[ERROR] erro ao emitir evento para o painel (WebSocket)');
+    logger.error({ err }, '[ERROR] erro ao emitir evento para painel (WebSocket)');
   }
 
-  // 2) Envio opcional para webhook HTTP (Django)
+  // 2) Webhook HTTP (opcional)
   try {
-    if (!DJANGO_WEBHOOK_URL) {
-      return; // se não tiver URL configurada, não faz nada
-    }
+    if (!WEBHOOK_ENABLED || !WEBHOOK_URLS.length) return;
+    if (!shouldSendEventToWebhook(type)) return;
 
-    // Tenta extrair um sessionId coerente
     let sessionId = null;
     if (data && typeof data === 'object') {
       if (data.sessionId || data.session_id) {
@@ -131,42 +205,36 @@ function emit(type, data) {
       }
     }
 
-    const payload = {
-      type,
-      data,
-      sessionId
-    };
+    const payload = { type, data, sessionId };
 
-    const headers = {
-      'Content-Type': 'application/json'
-    };
+    WEBHOOK_URLS.forEach((url, idx) => {
+      if (isWebhookDisabled(url)) return;
 
-    if (DJANGO_WEBHOOK_API_KEY) {
-      headers['x-api-key'] = DJANGO_WEBHOOK_API_KEY;
-    }
+      const headers = { 'Content-Type': 'application/json' };
+      const apiKey = getWebhookApiKeyForIndex(idx);
+      if (apiKey) headers['x-api-key'] = apiKey;
 
-    // Fire and forget: não usamos await para não travar o fluxo
-    axios
-      .post(DJANGO_WEBHOOK_URL, payload, { headers })
-      .catch((err) => {
-        logger.error(
-          { err: err.message },
-          '[ERROR] falha ao enviar webhook HTTP para backend'
-        );
-      });
+      axios
+        .post(url, payload, { headers, timeout: WEBHOOK_TIMEOUT_MS })
+        .then((resp) => {
+          if (resp.status >= 200 && resp.status < 300) {
+            markWebhookSuccess(url);
+          } else {
+            markWebhookFailure(url, {
+              code: `HTTP_${resp.status}`,
+              message: `status ${resp.status}`
+            });
+          }
+        })
+        .catch((err) => {
+          markWebhookFailure(url, err);
+        });
+    });
   } catch (err) {
     logger.error({ err }, '[ERROR] erro inesperado na rotina de webhook HTTP');
   }
 }
 
-/**
- * Sanitiza um objeto de sessão removendo propriedades internas (como
- * instâncias de sockets e funções), retornando apenas informações
- * seguras que podem ser enviadas ao cliente.
- *
- * @param {object} session Objeto de sessão armazenado no mapa
- * @returns {object|null} Sessão sanitizada ou null se entrada for nula
- */
 function sanitizeSession(session) {
   if (!session) return null;
   return {
@@ -182,34 +250,24 @@ function sanitizeSession(session) {
   };
 }
 
-/**
- * Recupera uma sessão pelo ID. Retorna o objeto interno com socket anexado.
- *
- * @param {string} sessionId Identificador da sessão
- * @returns {object|null} Objeto de sessão ou null se não existir
- */
-const getSession = (sessionId) => {
-  return sessions.get(sessionId) || null;
-};
+const getSession = (sessionId) => sessions.get(sessionId) || null;
+const getAllSessions = () => Array.from(sessions.values());
 
-/**
- * Retorna todas as sessões atualmente armazenadas (objetos internos).
- *
- * @returns {object[]} Array de objetos de sessão
- */
-const getAllSessions = () => {
-  return Array.from(sessions.values());
-};
-
-/**
- * Remove completamente uma sessão: faz logout, remove credenciais
- * e informa o painel.
- *
- * @param {string} sessionId Identificador da sessão a ser removida
- */
 async function deleteSession(sessionId) {
   const session = sessions.get(sessionId);
+
   if (session) {
+    try {
+      if (session._reconnectTimer) {
+        clearTimeout(session._reconnectTimer);
+        session._reconnectTimer = null;
+      }
+      if (session._qrConvertTimer) {
+        clearTimeout(session._qrConvertTimer);
+        session._qrConvertTimer = null;
+      }
+    } catch {}
+
     try {
       if (session.socket?.logout) {
         await session.socket.logout();
@@ -217,29 +275,47 @@ async function deleteSession(sessionId) {
     } catch (error) {
       logger.warn({ error }, `[WARN] erro ao dar logout na sessão ${sessionId}`);
     }
+
     sessions.delete(sessionId);
   }
+
   const authDir = path.join(AUTH_DIR, sessionId);
   try {
     await fs.remove(authDir);
   } catch (err) {
     logger.warn({ err }, `[WARN] erro ao remover diretório de autenticação ${authDir}`);
   }
+
   const sanitized = sanitizeSession(session) || { sessionId };
   emit('session-update', { ...sanitized, status: 'DELETED' });
   logger.info(`[INFO] Sessão ${sessionId} removida.`);
 }
 
-/**
- * Inicia ou restaura uma sessão WhatsApp identificada por `sessionId`.
- * Modificações aplicadas para estabilidade em 2025: versão hardcoded,
- * browser desktop e desativação de syncFullHistory.
- *
- * @param {string} sessionId Identificador único da sessão
- * @returns {Promise<object>} Objeto de dados da sessão
- */
+function parseVersionFromEnv() {
+  const raw = (process.env.WA_VERSION || '').trim();
+  if (!raw) return null;
+
+  const parts = raw
+    .split(/[.,]/)
+    .map((s) => Number.parseInt(String(s).trim(), 10))
+    .filter((n) => Number.isFinite(n));
+
+  if (parts.length >= 3) return [parts[0], parts[1], parts[2]];
+  return null;
+}
+
+function getBrowserConfig() {
+  // Pode customizar por env, mantendo padrão compatível
+  const browserName = process.env.WA_BROWSER_NAME || 'Desktop';
+  try {
+    return Browsers.appropriate(browserName);
+  } catch {
+    // fallback seguro
+    return Browsers.macOS('Desktop');
+  }
+}
+
 async function startSession(sessionId) {
-  // Se já existir uma sessão ativa ou pendente, apenas a retorna
   const existing = sessions.get(sessionId);
   if (existing && existing.status !== 'DISCONNECTED') {
     logger.warn(`[WARN] Sessão ${sessionId} já está ativa ou pendente.`);
@@ -247,65 +323,58 @@ async function startSession(sessionId) {
     return existing;
   }
 
-  // Garante que o diretório de autenticação da sessão exista
   const authDir = path.join(AUTH_DIR, sessionId);
   await fs.ensureDir(authDir);
 
-  // Obtém estado e função para salvar credenciais
+  // Atenção: useMultiFileAuthState é simples, mas pesado em I/O para alta escala
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
 
-  // Fixação da versão do protocolo WhatsApp Web (Compatível Nov/2025).
-  // Removemos fetchLatestBaileysVersion para evitar requests desnecessários
-  // e inconsistências de versão.
-  const waVersion = [2, 3000, 1029030078];
+  // Mantemos versão fixa estável por padrão; pode sobrescrever via WA_VERSION=2.3000.1029030078
+  const waVersion = parseVersionFromEnv() || [2, 3000, 1029030078];
   logger.info(`[INFO] Usando versão hardcoded do WA: v${waVersion.join('.')}`);
 
-  // Objeto de dados da sessão
   const sessionData = {
     sessionId,
     socket: null,
     status: 'PENDING',
-    // qr = texto do QR (rápido para repassar ao Django e para o frontend gerar imagem)
     qr: null,
-    // qrCode = imagem (data URL) opcional (pode ser 'svg' ou 'png', ver QR_IMAGE_MODE)
     qrCode: null,
     lastQrAt: null,
     hasEverConnected: false,
     token: null,
     name: '',
     phoneNumber: '',
-    // controles internos para evitar loops e duplicidade
     _reconnectTimer: null,
-    _qrConvertTimer: null
+    _qrConvertTimer: null,
+    _lastQrValue: null
   };
 
   sessions.set(sessionId, sessionData);
   emit('session-update', sanitizeSession(sessionData));
 
-  // Cria o socket do WhatsApp com as novas configurações solicitadas
   const sock = makeWASocket({
     version: waVersion,
-    logger: pino({ level: 'silent' }), // Desabilita logs internos
+    logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
     auth: state,
-    // Configura um browser desktop apropriado para garantir pareamento correto
-    browser: Browsers.appropriate('Desktop'),
-    // Desativa sincronização total do histórico para evitar sobrecarga inicial
+    browser: getBrowserConfig(),
     syncFullHistory: false,
+    markOnlineOnConnect: false,
     keepAliveIntervalMs: 30000,
-    // Função stub para mensagens não disponíveis
+    connectTimeoutMs: Number.parseInt(process.env.WA_CONNECT_TIMEOUT_MS || '20000', 10),
     getMessage: async () => ({ conversation: 'message-not-available' })
   });
 
-  // Atualiza o objeto de sessão com o socket ativo
   sessionData.socket = sock;
 
-  // Atualização de credenciais agora utiliza wrapper assíncrono explícito
-  sock.ev.on('creds.update', async () => await saveCreds());
+  sock.ev.on('creds.update', async () => {
+    try {
+      await saveCreds();
+    } catch (err) {
+      logger.warn({ err }, `[WARN] saveCreds falhou na sessão ${sessionId}`);
+    }
+  });
 
-  /**
-   * Listener para eventos de atualização de conexão.
-   */
   let reconnectAttempts = 0;
   const maxReconnectDelay = 60 * 1000;
 
@@ -314,18 +383,24 @@ async function startSession(sessionId) {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        // Guardamos o QR como texto (isso é o que realmente importa para pareamento)
-        // e emitimos imediatamente — isso reduz bastante a "demora" percebida.
+        // Evita trabalho redundante para mesmo QR repetido
+        const isSameQr = sessionData._lastQrValue === qr;
         sessionData.qr = qr;
         sessionData.lastQrAt = Date.now();
+        sessionData._lastQrValue = qr;
 
-        // Emissão rápida: o Django e/ou frontend já recebem o texto do QR sem esperar imagem/base64.
-        emit('qr', { sessionId, qr: sessionData.qr, src: sessionData.qrCode || null });
+        // 1) emissão imediata (texto) para latência mínima
+        // compatibilidade: enviamos qr, src e qrCode
+        emit('qr', {
+          sessionId,
+          qr: sessionData.qr,
+          src: sessionData.qrCode || null,
+          qrCode: sessionData.qrCode || null,
+          lastQrAt: sessionData.lastQrAt
+        });
 
-        // Geração opcional de imagem (data URL) em modo assíncrono + debounce.
-        // Isso mantém compatibilidade com frontends que esperam "src",
-        // sem bloquear o fluxo crítico do evento.
-        if (QR_IMAGE_MODE !== 'none') {
+        // 2) geração opcional da imagem em paralelo
+        if (QR_IMAGE_MODE !== 'none' && !isSameQr) {
           try {
             if (sessionData._qrConvertTimer) {
               clearTimeout(sessionData._qrConvertTimer);
@@ -338,27 +413,32 @@ async function startSession(sessionId) {
                 if (!currentQr) return;
 
                 let dataUrl = null;
-
                 if (QR_IMAGE_MODE === 'png') {
                   dataUrl = await qrcode.toDataURL(currentQr, {
                     errorCorrectionLevel: QR_ERROR_CORRECTION,
-                    margin: QR_MARGIN,
-                    scale: QR_SCALE
+                    margin: Number.isFinite(QR_MARGIN) ? QR_MARGIN : 1,
+                    scale: Number.isFinite(QR_SCALE) ? QR_SCALE : 4
                   });
                 } else {
-                  // default: svg (mais leve)
                   const svg = await qrcode.toString(currentQr, {
                     type: 'svg',
                     errorCorrectionLevel: QR_ERROR_CORRECTION,
-                    margin: QR_MARGIN
+                    margin: Number.isFinite(QR_MARGIN) ? QR_MARGIN : 1
                   });
                   dataUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
                 }
 
-                // Só atualiza se ainda for o mesmo QR
                 if (sessionData.qr === currentQr) {
                   sessionData.qrCode = dataUrl;
-                  emit('qr', { sessionId, qr: sessionData.qr, src: sessionData.qrCode });
+
+                  emit('qr', {
+                    sessionId,
+                    qr: sessionData.qr,
+                    src: sessionData.qrCode,
+                    qrCode: sessionData.qrCode,
+                    lastQrAt: sessionData.lastQrAt
+                  });
+
                   emit('session-update', sanitizeSession(sessionData));
                 }
               } catch (err) {
@@ -377,12 +457,11 @@ async function startSession(sessionId) {
         sessionData.status = 'CONNECTED';
         sessionData.hasEverConnected = true;
 
-        // Após conectar, não precisamos manter QR em memória
         sessionData.qr = null;
         sessionData.qrCode = null;
         sessionData.lastQrAt = null;
+        sessionData._lastQrValue = null;
 
-        // Cancela timers pendentes (se houver)
         try {
           if (sessionData._qrConvertTimer) {
             clearTimeout(sessionData._qrConvertTimer);
@@ -397,24 +476,22 @@ async function startSession(sessionId) {
           }
         } catch {}
 
-        // Gera (ou regenera) o token da sessão sempre que conecta
         sessionData.token = randomBytes(16).toString('hex');
         sessionData.name = sock.user?.name || '';
         sessionData.phoneNumber = (sock.user?.id || '').split(':')[0] || '';
-        reconnectAttempts = 0;
 
-        // Envia estado sanitizado com token para painel + webhook
+        reconnectAttempts = 0;
         emit('session-update', sanitizeSession(sessionData));
       }
 
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+        const isRestartRequired = statusCode === DisconnectReason.restartRequired;
 
         sessionData.status = 'DISCONNECTED';
         sessionData.token = null;
 
-        // Evita sockets pendurados em reconexões (e possíveis duplicidades)
         try {
           if (sessionData.socket?.end) {
             sessionData.socket.end(new Error('Reconnecting'));
@@ -422,7 +499,6 @@ async function startSession(sessionId) {
         } catch {}
         sessionData.socket = null;
 
-        // Cancela conversões de QR pendentes
         try {
           if (sessionData._qrConvertTimer) {
             clearTimeout(sessionData._qrConvertTimer);
@@ -433,25 +509,25 @@ async function startSession(sessionId) {
         emit('session-update', sanitizeSession(sessionData));
 
         if (isLoggedOut) {
-          logger.error(`[ERROR] Sessão ${sessionId} desconectada permanentemente.`);
+          logger.error(`[ERROR] Sessão ${sessionId} desconectada permanentemente (loggedOut).`);
           await deleteSession(sessionId);
           return;
         }
 
-        // Evita agendar múltiplas reconexões em cascata
         if (sessionData._reconnectTimer) {
           logger.warn(`[WARN] Reconexão já agendada para sessão ${sessionId}. Ignorando duplicidade.`);
           return;
         }
 
-        let delay = 1500;
+        let delay;
 
-        if (sessionData.hasEverConnected) {
+        if (isRestartRequired) {
+          delay = 500;
+          reconnectAttempts = 0;
+        } else if (sessionData.hasEverConnected) {
           reconnectAttempts += 1;
           delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);
         } else {
-          // Sessões que ainda não conectaram (pareamento pendente) podem ter "close" espúrios.
-          // Aqui mantemos um delay curto e estável para evitar loop agressivo.
           reconnectAttempts = 0;
           delay = 1500;
         }
@@ -460,22 +536,20 @@ async function startSession(sessionId) {
 
         sessionData._reconnectTimer = setTimeout(() => {
           sessionData._reconnectTimer = null;
-          startSession(sessionId).catch((err) =>
-            logger.error({ err }, `[ERROR] falha ao reiniciar sessão ${sessionId}`)
-          );
+          startSession(sessionId).catch((err) => {
+            logger.error({ err }, `[ERROR] falha ao reiniciar sessão ${sessionId}`);
+          });
         }, delay);
       }
 
-      // Payload compatível com o painel (WebSocket)
-      // e com o webhook do backend (evento connection.update)
       const payloadData = {
         ...update,
-        status: connection || update?.status || null, // usado pelo backend
-        qr: sessionData.qr || qr || null,             // texto do QR atual (se existir)
-        qrCode: sessionData.qrCode || null,            // imagem (data URL) opcional do QR
-        lastQrAt: sessionData.lastQrAt || null,        // timestamp (ms) do último QR recebido
-        me: sock.user || update?.me || null,          // dados do usuário logado
-        token: sessionData.token || null              // token atual da sessão
+        status: connection || update?.status || null,
+        qr: sessionData.qr || qr || null,
+        qrCode: sessionData.qrCode || null,
+        lastQrAt: sessionData.lastQrAt || null,
+        me: sock.user || update?.me || null,
+        token: sessionData.token || null
       };
 
       emit('connection.update', { sessionId, ...payloadData });
@@ -484,7 +558,6 @@ async function startSession(sessionId) {
     }
   });
 
-  // Lista de eventos a serem interceptados e retransmitidos
   const eventsToHandle = [
     'messaging-history.set',
     'chats.upsert',
@@ -525,10 +598,6 @@ async function startSession(sessionId) {
     });
   }
 
-  /**
-   * Listener específico para expandir mensagens recebidas (upsert)
-   * em eventos detalhados "message".
-   */
   sock.ev.on('messages.upsert', (m) => {
     try {
       const msgs = m.messages || [];
@@ -552,7 +621,6 @@ async function startSession(sessionId) {
     }
   });
 
-  // Handler de presença para compatibilidade
   sock.ev.on('presence.update', (presence) => {
     try {
       emit('presence', {
@@ -568,9 +636,6 @@ async function startSession(sessionId) {
   return sessionData;
 }
 
-/**
- * Inicia todas as sessões previamente salvas no diretório de auth.
- */
 async function startAllSavedSessions() {
   try {
     const savedDirs = await fs.readdir(AUTH_DIR);
@@ -578,6 +643,7 @@ async function startAllSavedSessions() {
       logger.info('[INFO] Nenhuma sessão salva encontrada para iniciar.');
       return;
     }
+
     for (const dir of savedDirs) {
       try {
         logger.info(`[INFO] Iniciando sessão salva: ${dir}`);
@@ -595,15 +661,24 @@ async function startAllSavedSessions() {
   }
 }
 
-/**
- * Encerra todas as conexões ativas para desligamento seguro do processo.
- */
 async function shutdown() {
   logger.info('[INFO] shutdown iniciado: finalizando conexões ativas...');
   const ids = Array.from(sessions.keys());
+
   for (const id of ids) {
     try {
       const session = sessions.get(id);
+
+      if (session?._reconnectTimer) {
+        clearTimeout(session._reconnectTimer);
+        session._reconnectTimer = null;
+      }
+
+      if (session?._qrConvertTimer) {
+        clearTimeout(session._qrConvertTimer);
+        session._qrConvertTimer = null;
+      }
+
       if (session?.socket?.end) {
         await session.socket.end(new Error('Servidor finalizado'));
       }
@@ -611,6 +686,7 @@ async function shutdown() {
       logger.warn({ err }, `[WARN] erro ao finalizar conexão da sessão ${id}`);
     }
   }
+
   logger.info('[INFO] shutdown finalizado.');
 }
 

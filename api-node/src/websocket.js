@@ -1,4 +1,5 @@
-const { WebSocketServer } = require('ws');
+const WebSocket = require('ws');
+const { WebSocketServer } = WebSocket;
 
 let wss;
 
@@ -73,7 +74,7 @@ function broadcast(typeOrObj, data) {
 
     const json = JSON.stringify(message);
     wss.clients.forEach(client => {
-        if (client.readyState === client.OPEN) {
+        if (client.readyState === WebSocket.OPEN) {
             try {
                 client.send(json);
             } catch (err) {

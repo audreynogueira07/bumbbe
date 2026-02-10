@@ -4,12 +4,11 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
-    /* --- VARIÁVEIS DA MARCA --- */
     :root {
         --brand-purple: #8c52ff;
         --brand-orange: #ff751f;
         --brand-dark: #2e2e2e;
-        
+
         --sidebar-width: 280px;
         --sidebar-bg: #ffffff;
         --sidebar-text: #495057;
@@ -18,7 +17,7 @@
         --sidebar-border: #eceef1;
     }
 
-    /* --- Estrutura Base --- */
+    /* Sidebar fixa colada no topo */
     .sidebar-wrapper {
         position: fixed;
         top: 0;
@@ -32,10 +31,9 @@
         flex-direction: column;
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 2px 0 10px rgba(0,0,0,0.03);
-        font-family: 'Poppins', sans-serif; 
+        font-family: 'Poppins', sans-serif;
     }
 
-    /* --- Brand Box --- */
     .brand-box {
         height: 80px;
         border-bottom: 1px solid var(--sidebar-border);
@@ -43,15 +41,15 @@
         align-items: center;
         justify-content: center;
     }
-    
+
     .brand-logo-img {
         max-height: 45px;
         width: auto;
         transition: transform 0.2s;
+        display: block;
     }
     .brand-logo-img:hover { transform: scale(1.05); }
 
-    /* --- Navegação --- */
     .sidebar-menu {
         flex-grow: 1;
         overflow-y: auto;
@@ -69,7 +67,6 @@
         margin: 1.5rem 0 0.5rem 0.8rem;
     }
 
-    /* Links Principais */
     .nav-link {
         display: flex;
         align-items: center;
@@ -122,16 +119,13 @@
         border-radius: 0 4px 4px 0;
     }
 
-    /* --- Submenu (Itens Secundários) --- */
-    .nav-link-toggle {
-        justify-content: space-between;
-    }
+    /* Submenu */
+    .nav-link-toggle { justify-content: space-between; }
     .toggle-chevron {
         font-size: 0.8rem;
         transition: transform 0.3s ease;
         opacity: 0.5;
     }
-    /* Gira a seta quando expandido (controlado via JS class 'expanded') */
     .nav-link-toggle[aria-expanded="true"] .toggle-chevron {
         transform: rotate(90deg);
         opacity: 1;
@@ -143,13 +137,10 @@
         margin: 0;
         max-height: 0;
         overflow: hidden;
-        transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* Animação suave */
+        transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         padding-left: 10px;
     }
-    
-    .nav-submenu.show {
-        max-height: 500px; /* Altura máxima arbitrária suficiente para o conteúdo */
-    }
+    .nav-submenu.show { max-height: 500px; }
 
     .nav-sublink {
         display: flex;
@@ -170,7 +161,6 @@
         font-weight: 600;
         background: rgba(140, 82, 255, 0.05);
     }
-    /* Linha conectora visual (opcional) */
     .nav-sublink::before {
         content: '';
         position: absolute;
@@ -182,21 +172,6 @@
     }
     .nav-sublink.active::before { background: var(--brand-purple); }
 
-
-    /* --- Badge --- */
-    .badge-soon {
-        font-size: 0.6rem;
-        padding: 2px 6px;
-        background-color: #fff0e6;
-        color: var(--brand-orange);
-        border-radius: 4px;
-        margin-left: auto;
-        font-weight: 600;
-        text-transform: uppercase;
-        border: 1px solid rgba(255, 117, 31, 0.2);
-    }
-
-    /* --- Footer --- */
     .user-footer {
         padding: 1rem;
         border-top: 1px solid var(--sidebar-border);
@@ -219,7 +194,7 @@
         font-weight: 600; flex-shrink: 0;
     }
 
-    /* --- Mobile --- */
+    /* Mobile */
     .sidebar-overlay {
         display: none;
         position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -240,134 +215,221 @@
         .sidebar-overlay.show { pointer-events: auto; }
         .mobile-toggle-btn { display: block; }
     }
+
+    .btn-logout {
+        background: #fff;
+        border: 1px solid #eee;
+        color: #dc3545;
+        border-radius: 8px;
+    }
+    .btn-logout:hover {
+        border-color: #dc3545;
+        background: rgba(220,53,69,0.06);
+        color: #dc3545;
+    }
 </style>
 
+<!-- Elementos Mobile -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 <button class="mobile-toggle-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
 
-<aside class="sidebar-wrapper" id="mainSidebar">
-    
-    <div class="brand-box px-4">
-        <a href="{% url 'fillow:index' %}">
-            <img src="{% static 'fillow/images/logo-full.png' %}" alt="Logo" class="brand-logo-img">
-        </a>
-    </div>
+{% with rm=request.resolver_match %}
+{% with app=rm.app_name url=rm.url_name %}
 
-    <nav class="sidebar-menu">
-        
-        <div class="menu-header">Principal</div>
-        
-        <a href="{% url 'fillow:index' %}" class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
-            <i class="fas fa-chart-pie menu-icon"></i>
-            <span>Dashboard Geral</span>
-        </a>
+    {# URLs seguras: com "as" não quebra quando a rota não existe #}
+    {% url 'fillow:index' as u_index %}
+    {% url 'adsmanager:dashboard' as u_ads_dashboard %}
+    {% url 'adsmanager:account_create' as u_ads_connect %}
 
-        <div class="menu-header">Canais de Atendimento</div>
+    {% url 'fillow:api-v1' as u_api_v1 %}
+    {% url 'chatbot:list' as u_chatbot_list %}
+    {% url 'chatbot:contacts' as u_chatbot_contacts %}
+    {% url 'flowbot:list' as u_flowbot_list %}
 
-        <div class="nav-item-group">
-            <button class="nav-link nav-link-toggle w-100" onclick="toggleSubmenu('submenu-whatsapp', this)" aria-expanded="{% if 'chatbot' in request.resolver_match.app_names or 'flowbot' in request.resolver_match.app_names or request.resolver_match.url_name == 'api-v1' %}true{% else %}false{% endif %}">
-                <div class="d-flex align-items-center">
-                    <i class="fab fa-whatsapp menu-icon"></i>
-                    <span>WhatsApp</span>
+    {% url 'wpbot:list' as u_wpbot_list %}
+    {% url 'wpbot:leads' as u_wpbot_leads %}
+
+    {% url 'fillow:docs' as u_docs %}
+    {% url 'fillow:logout' as u_logout %}
+
+    <aside class="sidebar-wrapper" id="mainSidebar">
+
+        <div class="brand-box px-4">
+            {% if u_index %}
+                <a href="{{ u_index }}">
+                    <img src="{% static 'fillow/images/logo-full.png' %}" alt="Logo" class="brand-logo-img">
+                </a>
+            {% else %}
+                <img src="{% static 'fillow/images/logo-full.png' %}" alt="Logo" class="brand-logo-img">
+            {% endif %}
+        </div>
+
+        <nav class="sidebar-menu">
+
+            {% if u_index %}
+                <div class="menu-header">Principal</div>
+                <a href="{{ u_index }}" class="nav-link {% if app == 'fillow' and url == 'index' %}active{% endif %}">
+                    <i class="fas fa-chart-pie menu-icon"></i>
+                    <span>Dashboard Geral</span>
+                </a>
+            {% endif %}
+
+            {% if u_ads_dashboard or u_ads_connect %}
+                <div class="menu-header">Tráfego Pago</div>
+
+                {% if u_ads_dashboard %}
+                    <a href="{{ u_ads_dashboard }}"
+                       class="nav-link {% if app == 'adsmanager' and url != 'account_create' and url != 'connect' %}active{% endif %}">
+                        <i class="fas fa-bullhorn menu-icon"></i>
+                        <span>Gerenciador de Ads</span>
+                    </a>
+                {% endif %}
+
+                {% if u_ads_connect %}
+                    <a href="{{ u_ads_connect }}"
+                       class="nav-link {% if app == 'adsmanager' and url == 'account_create' or app == 'adsmanager' and url == 'connect' %}active{% endif %}">
+                        <i class="fas fa-plug menu-icon"></i>
+                        <span>Conectar Conta</span>
+                    </a>
+                {% endif %}
+            {% endif %}
+
+            {% if u_api_v1 or u_chatbot_list or u_chatbot_contacts or u_flowbot_list or u_wpbot_list or u_wpbot_leads %}
+                <div class="menu-header">Canais de Atendimento</div>
+            {% endif %}
+
+            {% if u_api_v1 or u_chatbot_list or u_chatbot_contacts or u_flowbot_list %}
+                <div class="nav-item-group">
+                    <button class="nav-link nav-link-toggle w-100"
+                            onclick="toggleSubmenu('submenu-whatsapp', this)"
+                            aria-expanded="{% if app == 'chatbot' or app == 'flowbot' or url == 'api-v1' %}true{% else %}false{% endif %}">
+                        <div class="d-flex align-items-center">
+                            <i class="fab fa-whatsapp menu-icon"></i>
+                            <span>WhatsApp</span>
+                        </div>
+                        <i class="fas fa-chevron-right toggle-chevron"></i>
+                    </button>
+
+                    <div id="submenu-whatsapp"
+                         class="nav-submenu {% if app == 'chatbot' or app == 'flowbot' or url == 'api-v1' %}show{% endif %}">
+
+                        {% if request.user.is_superuser or request.user.has_api_access or request.user.api %}
+                            {% if u_api_v1 %}
+                                <a href="{{ u_api_v1 }}" class="nav-sublink {% if url == 'api-v1' %}active{% endif %}">
+                                    Conexões & API
+                                </a>
+                            {% endif %}
+                        {% endif %}
+
+                        {% if request.user.is_superuser or request.user.has_chatbot_access or request.user.chatbot %}
+                            {% if u_chatbot_list %}
+                                <a href="{{ u_chatbot_list }}" class="nav-sublink {% if app == 'chatbot' and url == 'list' %}active{% endif %}">
+                                    Meus Chatbots
+                                </a>
+                            {% endif %}
+
+                            {% if u_chatbot_contacts %}
+                                <a href="{{ u_chatbot_contacts }}" class="nav-sublink {% if app == 'chatbot' and url == 'contacts' %}active{% endif %}">
+                                    CRM & Contatos
+                                </a>
+                            {% endif %}
+
+                            {% if u_flowbot_list %}
+                                <a href="{{ u_flowbot_list }}" class="nav-sublink {% if app == 'flowbot' and url == 'list' %}active{% endif %}">
+                                    FlowBot (Fluxos)
+                                </a>
+                            {% endif %}
+                        {% endif %}
+                    </div>
                 </div>
-                <i class="fas fa-chevron-right toggle-chevron"></i>
-            </button>
-            
-            <div id="submenu-whatsapp" class="nav-submenu {% if 'chatbot' in request.resolver_match.app_names or 'flowbot' in request.resolver_match.app_names or request.resolver_match.url_name == 'api-v1' %}show{% endif %}">
-                <a href="{% url 'fillow:api-v1' %}" class="nav-sublink {% if request.resolver_match.url_name == 'api-v1' %}active{% endif %}">
-                    Conexões & API
-                </a>
-                
-                <a href="{% url 'chatbot:list' %}" class="nav-sublink {% if request.resolver_match.app_names == 'chatbot' and 'contacts' not in request.resolver_match.url_name %}active{% endif %}">
-                    Chat IA
-                </a>
+            {% endif %}
 
-                <a href="{% url 'flowbot:list' %}" class="nav-sublink {% if 'flowbot' in request.resolver_match.app_names %}active{% endif %}">
-                    Chat Offline
-                </a>
+            {% if u_wpbot_list or u_wpbot_leads %}
+                <div class="nav-item-group mt-1">
+                    <button class="nav-link nav-link-toggle w-100"
+                            onclick="toggleSubmenu('submenu-wordpress', this)"
+                            aria-expanded="{% if app == 'wpbot' %}true{% else %}false{% endif %}">
+                        <div class="d-flex align-items-center">
+                            <i class="fab fa-wordpress menu-icon"></i>
+                            <span>Site / Web</span>
+                        </div>
+                        <i class="fas fa-chevron-right toggle-chevron"></i>
+                    </button>
 
-                <a href="{% url 'chatbot:contacts' %}" class="nav-sublink {% if 'contacts' in request.resolver_match.url_name %}active{% endif %}">
-                    CRM & Contatos
+                    <div id="submenu-wordpress"
+                         class="nav-submenu {% if app == 'wpbot' %}show{% endif %}">
+
+                        {% if request.user.is_superuser or request.user.has_chatbot_access or request.user.chatbot %}
+                            {% if u_wpbot_list %}
+                                <a href="{{ u_wpbot_list }}" class="nav-sublink {% if app == 'wpbot' and url == 'list' %}active{% endif %}">
+                                    Bots do Site
+                                </a>
+                            {% endif %}
+                            {% if u_wpbot_leads %}
+                                <a href="{{ u_wpbot_leads }}" class="nav-sublink {% if app == 'wpbot' and url == 'leads' %}active{% endif %}">
+                                    Leads Capturados
+                                </a>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if u_docs %}
+                {% if request.user.is_superuser or request.user.has_api_access or request.user.api %}
+                <div class="menu-header">Suporte</div>
+                <a href="{{ u_docs }}" class="nav-link {% if app == 'fillow' and url == 'docs' %}active{% endif %}">
+                    <i class="fas fa-code menu-icon"></i>
+                    <span>Documentação</span>
                 </a>
+                {% endif %}
+            {% endif %}
+
+        </nav>
+
+        <div class="user-footer">
+            <div class="user-card d-flex align-items-center p-2 rounded">
+                <div class="user-avatar rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm">
+                    {{ request.user.username|make_list|first|upper|default:"U" }}
+                </div>
+
+                <div style="flex-grow: 1; overflow: hidden; min-width: 0;">
+                    <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem;">
+                        {{ request.user.first_name|default:request.user.username }}
+                    </div>
+                    <div class="small text-muted text-truncate" style="font-size: 0.7rem;">
+                        {% if request.user.is_superuser %}
+                            Admin
+                        {% elif request.user.plan %}
+                            {{ request.user.plan.name }}
+                        {% else %}
+                            Sem plano
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if u_logout %}
+                    <a href="{{ u_logout }}" class="btn btn-sm btn-logout ms-1" title="Sair">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
+                {% endif %}
             </div>
         </div>
 
-        <div class="nav-item-group mt-1">
-            <button class="nav-link nav-link-toggle w-100" onclick="toggleSubmenu('submenu-wordpress', this)" aria-expanded="{% if 'wpbot' in request.resolver_match.app_names %}true{% else %}false{% endif %}">
-                <div class="d-flex align-items-center">
-                    <i class="fab fa-wordpress menu-icon"></i>
-                    <span>Site / Web</span>
-                </div>
-                <i class="fas fa-chevron-right toggle-chevron"></i>
-            </button>
-            
-            <div id="submenu-wordpress" class="nav-submenu {% if 'wpbot' in request.resolver_match.app_names %}show{% endif %}">
-                <a href="{% url 'wpbot:list' %}" class="nav-sublink {% if 'wpbot' in request.resolver_match.app_names and 'leads' not in request.resolver_match.url_name %}active{% endif %}">
-                    Bots do Site
-                </a>
-                <a href="{% url 'wpbot:leads' %}" class="nav-sublink {% if 'leads' in request.resolver_match.url_name %}active{% endif %}">
-                    Leads Capturados
-                </a>
-            </div>
-        </div>
-
-        <div class="menu-header">Gestão</div>
-
-        <a href="#" class="nav-link text-muted" style="opacity: 0.7;">
-            <i class="far fa-calendar-check menu-icon"></i>
-            <span>Agendamentos</span>
-            <span class="badge-soon">Em Breve</span>
-        </a>
-
-        <a href="#" class="nav-link text-muted" style="opacity: 0.7;">
-            <i class="fas fa-file-invoice-dollar menu-icon"></i>
-            <span>Financeiro</span>
-            <span class="badge-soon">Em Breve</span>
-        </a>
-
-        <div class="menu-header">Suporte</div>
-
-        <a href="{% url 'fillow:docs' %}" class="nav-link {% if request.resolver_match.url_name == 'docs' %}active{% endif %}">
-            <i class="fas fa-code menu-icon"></i>
-            <span>Documentação</span>
-        </a>
-    </nav>
-
-    <div class="user-footer">
-        <div class="user-card d-flex align-items-center p-2 rounded">
-            <div class="user-avatar rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm">
-                {{ request.user.username|make_list|first|upper }}
-            </div>
-            
-            <div style="flex-grow: 1; overflow: hidden; min-width: 0;">
-                <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem;">
-                    {{ request.user.first_name|default:request.user.username }}
-                </div>
-                <div class="small text-muted text-truncate" style="font-size: 0.7rem;">
-                    {% if request.user.is_superuser %}Admin{% else %}Plano Pro{% endif %}
-                </div>
-            </div>
-
-            <a href="{% url 'fillow:logout' %}" class="btn btn-sm btn-logout ms-1" title="Sair">
-                <i class="fas fa-sign-out-alt"></i>
-            </a>
-        </div>
-    </div>
-</aside>
+    </aside>
+{% endwith %}
+{% endwith %}
 
 <script>
-    // Toggle Sidebar Mobile
     function toggleSidebar() {
         document.getElementById('mainSidebar').classList.toggle('show');
         document.getElementById('sidebarOverlay').classList.toggle('show');
     }
 
-    // Toggle Submenu (Accordion)
     function toggleSubmenu(id, btn) {
         const submenu = document.getElementById(id);
         const isExpanded = btn.getAttribute('aria-expanded') === 'true';
-        
-        // Toggle visual state
+
         if (isExpanded) {
             submenu.classList.remove('show');
             btn.setAttribute('aria-expanded', 'false');

@@ -1,0 +1,111 @@
+{% extends "adsmanager/base.html" %}
+{% block title %}Importar Campanha | Bumbbe Ads{% endblock %}
+{% block subtitle %}Campanhas{% endblock %}
+{% block header_title %}Importar campanha para o app{% endblock %}
+
+{% block header_actions %}
+    <a href="{% url 'adsmanager:dashboard' %}" class="btn btn-outline-secondary btn-lg">
+        <i class="fas fa-arrow-left me-2"></i>Voltar
+    </a>
+{% endblock %}
+
+{% block content %}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="bb-card">
+            <div class="bb-header">
+                <div class="fw-bold">Importar</div>
+                <div class="text-muted small">Cria um registro local para permitir agendamento e automações.</div>
+            </div>
+            <div class="bb-body">
+
+                <div class="alert alert-warning border-0 shadow-sm">
+                    <i class="fas fa-triangle-exclamation me-2"></i>
+                    Esta tela importa a campanha <b>para o seu banco</b>. Não altera a campanha na plataforma ainda.
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nome</label>
+                        <input type="text" class="form-control" name="name" value="{{ remote.name }}" required>
+                        <div class="text-muted small mt-2">Você pode renomear localmente (isso não muda no Google/Meta).</div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">ID da campanha</label>
+                            <input type="text" class="form-control" value="{{ remote.id }}" disabled>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Status</label>
+                            <input type="text" class="form-control" value="{{ remote.status|default:'—' }}" disabled>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <label class="form-label fw-bold">Orçamento (micros)</label>
+                        <input type="number" class="form-control" name="budget_micros" value="{{ remote.budget_micros|default_if_none:'' }}" placeholder="Ex.: 5000000">
+                        <div class="text-muted small mt-2">Se vazio, fica sem orçamento local (você pode definir depois).</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-4">
+                        <input class="form-check-input" type="checkbox" name="economic_mode" {% if default_economic_mode %}checked{% endif %}>
+                        <label class="form-check-label fw-semibold">Ativar modo econômico</label>
+                        <div class="text-muted small">O modo econômico limita alterações automáticas agressivas.</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-purple btn-lg">
+                        <i class="fas fa-download me-2"></i>Importar para o app
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="bb-card">
+            <div class="bb-header">
+                <div class="fw-bold">Resumo da campanha</div>
+                <div class="text-muted small">Dados detectados na conta conectada.</div>
+            </div>
+            <div class="bb-body">
+                <div class="mb-3">
+                    <div class="small text-muted">Conta</div>
+                    <div class="fw-bold">{{ account.name }}</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="small text-muted">Plataforma</div>
+                    <div class="fw-bold">{{ account.get_platform_display }}</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="small text-muted">Objetivo</div>
+                    <div class="fw-bold">{{ remote.objective|default:"—" }}</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="small text-muted">Orçamento (micros)</div>
+                    <div class="fw-bold">{{ remote.budget_micros|default:"—" }}</div>
+                </div>
+
+                <div class="helper-card p-3 mt-4">
+                    <div class="fw-bold mb-2"><i class="fas fa-piggy-bank me-2"></i>Orçamento pequeno</div>
+                    <div class="text-muted small">
+                        Com poucos reais, o principal é:
+                        <ul class="mt-2 mb-0">
+                            <li>Criativo forte e simples.</li>
+                            <li>Segmentação não muito estreita.</li>
+                            <li>Evitar mexer toda hora.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

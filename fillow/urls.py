@@ -1,13 +1,17 @@
 from django.urls import path
-from . import views
-from django.contrib.auth import views as auth_views
 from django.shortcuts import redirect
 from django.contrib.auth import logout
+from django.contrib.auth import views as auth_views
+
+from fillow.dispatch_dashboard_views import DispatchDashboardManagerView
+from . import views
+
 # ==============================================================================
 # ROTAS COMPLETAS (DASHBOARD + API V1)
 # ==============================================================================
 
 app_name = 'fillow'
+
 # ==============================================================================
 # FUNÇÃO AUXILIAR DE LOGOUT
 # ==============================================================================
@@ -69,4 +73,25 @@ urlpatterns = [
     path('api/v1/profile/blocklist/', views.ProfileView.as_view(), name='v1_blocklist'),
     path('api/v1/profile/manage/<str:action>/', views.ProfileView.as_view(), name='v1_profile_manage'), # PUT status, PUT picture
     path('api/v1/users/<str:action>/', views.UserActionView.as_view(), name='v1_user_action'), # block, check
+    
+    # --- DISPARADOR (INTERNO / PAINEL) ---
+    path(
+        "dispatch/manager/",
+        DispatchDashboardManagerView.as_view(),
+        name="dispatch_manager",
+    ),
+    path('api/internal/dispatch/templates/', views.DispatchTemplateListCreateView.as_view(), name='dispatch_templates'),
+    path('api/internal/dispatch/templates/<int:pk>/', views.DispatchTemplateDetailView.as_view(), name='dispatch_template_detail'),
+
+    path('api/internal/dispatch/groups/', views.DispatchContactGroupListCreateView.as_view(), name='dispatch_groups'),
+    path('api/internal/dispatch/groups/<int:group_id>/', views.DispatchContactGroupDetailView.as_view(), name='dispatch_group_detail'),
+    path('api/internal/dispatch/groups/<int:group_id>/contacts/sync/', views.DispatchContactGroupSyncContactsView.as_view(), name='dispatch_group_sync_contacts'),
+
+    path('api/internal/dispatch/campaigns/', views.DispatchCampaignListCreateView.as_view(), name='dispatch_campaigns'),
+    path('api/internal/dispatch/campaigns/<int:campaign_id>/', views.DispatchCampaignDetailView.as_view(), name='dispatch_campaign_detail'),
+    path('api/internal/dispatch/campaigns/<int:campaign_id>/action/<str:action>/', views.DispatchCampaignActionView.as_view(), name='dispatch_campaign_action'),
+    path('api/internal/dispatch/campaigns/<int:campaign_id>/queue/', views.DispatchCampaignQueueView.as_view(), name='dispatch_campaign_queue'),
+
+    # “pump”/worker manual (chame periodicamente)
+    path('api/internal/dispatch/queue/process/', views.DispatchQueueWorkerView.as_view(), name='dispatch_queue_process'),
 ]

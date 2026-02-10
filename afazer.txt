@@ -11,3 +11,22 @@ chatbot sempre verificar as mensagens anteriores
 otimizar o chat para parar de enviar tanto contexto para economizar token (deixar padrao gemini)
 enviar conversa para o vendedor ao final / /ou suporte
 chatbot IA salvar tipo de negócio
+Todos os chats devem ter noção do dia, ano e horario
+Mensagens recebidas quando o bot estava off (ler mensagens, sintetizar e responder, ler inclusive alguma que possamos ter enviado por fora do bot)
+Melhorar a apresentação
+Quando mandar link colocar o rastreio do google analytics para a IA pegar se ele foi la, o que fez la.
+
+
+
+Resolver - 
+--- [ENGINE] Iniciando processamento (AI Decisions) para Curso Quijote ---
+Erro Node (429) em https://zapnodeapi.bumbbe.com/sess_d06205169180424a/chats/mark-read: {'error': 'Muitas requisições deste IP, tente novamente mais tarde.'}
+Erro Node (429) em https://zapnodeapi.bumbbe.com/sess_d06205169180424a/users/presence: {'error': 'Muitas requisições deste IP, tente novamente mais tarde.'}
+Erro Node (429) em https://zapnodeapi.bumbbe.com/sess_d06205169180424a/users/presence: {'error': 'Muitas requisições deste IP, tente novamente mais tarde.'}
+Erro Node (429) em https://zapnodeapi.bumbbe.com/sess_d06205169180424a/users/presence: {'error': 'Muitas requisições deste IP, tente novamente mais tarde.'}
+Erro Node (429) em https://zapnodeapi.bumbbe.com/sess_d06205169180424a/users/presence: {'error': 'Muitas requisições deste IP, tente novamente mais tarde.'}
+Erro Node (429) em https://zapnodeapi.bumbbe.com/sess_d06205169180424a/users/presence: {'error': 'Muitas requisições deste IP, tente novamente mais tarde.'}
+Erro Node (429) em https://zapnodeapi.bumbbe.com/sess_d06205169180424a/messages/send: {'error': 'Muitas requisições deste IP, tente novamente mais tarde.'}
+Erro Node (429) em https://zapnodeapi.bumbbe.com/sess_d06205169180424a/users/presence: {'error': 'Muitas requisições deste IP, tente novamente mais tarde.'}
+Erro Node (429) em https://zapnodeapi.bumbbe.com/sess_d06205169180424a/users/presence: {'error': 'Muitas requisições deste IP, tente novamente mais tarde.'}
+Erro Node (429) em https://zapnodeapi.bumbbe.com/sess_d06205169180424a/messages/send: {'error': 'Muitas requisições deste IP, tente novamente mais tarde.'}

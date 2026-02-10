@@ -1,0 +1,82 @@
+{% extends "adsmanager/base.html" %}
+{% block title %}Execução | Bumbbe Ads{% endblock %}
+{% block subtitle %}Auditoria{% endblock %}
+{% block header_title %}Detalhe da Execução{% endblock %}
+
+{% block header_actions %}
+    <a href="{% url 'adsmanager:runs' %}" class="btn btn-outline-secondary btn-lg">
+        <i class="fas fa-arrow-left me-2"></i>Voltar
+    </a>
+{% endblock %}
+
+{% block content %}
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="bb-card">
+            <div class="bb-header">
+                <div class="fw-bold">Resumo</div>
+                <div class="text-muted small">O que aconteceu nesta execução.</div>
+            </div>
+            <div class="bb-body">
+                <div class="mb-2">
+                    <div class="small text-muted">Tipo</div>
+                    <div class="fw-bold">{{ run.get_run_type_display }}</div>
+                </div>
+                <div class="mb-2">
+                    <div class="small text-muted">Status</div>
+                    <div>
+                        <span class="badge-pill
+                            {% if run.status == 'success' %} bg-ok
+                            {% elif run.status == 'skipped' %} bg-warn
+                            {% else %} bg-off {% endif %}">
+                            {{ run.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="small text-muted">Início</div>
+                    <div class="fw-bold">{{ run.started_at|date:"d/m/Y H:i" }}</div>
+                </div>
+                <div class="mb-2">
+                    <div class="small text-muted">Fim</div>
+                    <div class="fw-bold">
+                        {% if run.finished_at %}{{ run.finished_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="mb-2">
+                    <div class="small text-muted">Campanha</div>
+                    <div class="fw-bold">{% if run.campaign %}{{ run.campaign.name }}{% else %}—{% endif %}</div>
+                </div>
+
+                <div class="mb-2">
+                    <div class="small text-muted">Resumo</div>
+                    <div class="text-muted">{{ run.summary|default:"—" }}</div>
+                </div>
+
+                {% if run.error %}
+                    <div class="alert alert-danger border-0 shadow-sm mt-4">
+                        <i class="fas fa-bug me-2"></i><b>Erro:</b> {{ run.error }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="bb-card">
+            <div class="bb-header">
+                <div class="fw-bold">Payload (JSON)</div>
+                <div class="text-muted small">Dados usados / resultados salvos.</div>
+            </div>
+            <div class="bb-body">
+                <pre class="code">{{ run.payload|pprint }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

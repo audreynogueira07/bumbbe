@@ -28,8 +28,8 @@
             font-size: 0.95rem; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.15);
             word-wrap: break-word;
         }
-        .msg-in .msg-bubble { background: #fff; border-top-left-radius: 0; color: #111; }
-        .msg-out .msg-bubble { background: #dcf8c6; border-top-right-radius: 0; color: #111; }
+        .msg-row.in .msg-bubble { background: #fff; border-top-left-radius: 0; color: #111; }
+        .msg-row.out .msg-bubble { background: #dcf8c6; border-top-right-radius: 0; color: #111; }
         
         .msg-meta { font-size: 0.65rem; color: #999; margin-top: 4px; text-align: right; display: block; }
         .msg-type-badge { font-size: 0.7rem; font-weight: bold; text-transform: uppercase; opacity: 0.7; margin-bottom: 4px; display: block; }
@@ -423,7 +423,7 @@ print(response.json())</pre>
 -d '{
   "to": "5511999998888",
   "displayName": "Fulano de Tal",
-  "vcard": "BEGIN:VCARD\\nVERSION:3.0\\nFN:Fulano de Tal\\nTEL;type=CELL;type=VOICE;waid=5511999991234:+55 11 99999‑1234\\nEND:VCARD"
+  "vcard": "BEGIN:VCARD\\nVERSION:3.0\\nFN:Fulano de Tal\\nTEL;type=CELL;type=VOICE;waid=5511999991234:+55 11 99999-1234\\nEND:VCARD"
 }'</pre>
                                                 </div>
 
@@ -724,6 +724,7 @@ print(response.json())</pre>
 
     <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
     <script>
         const instanceId = "{{ instance.id }}";
         const csrfToken = "{{ csrf_token }}";
@@ -739,19 +740,27 @@ print(response.json())</pre>
         };
 
         // --- AUTO-CONNECT (ANTI-FLOOD) ---
-        // Se a instância estiver DESATIVADA / DESCONECTADA / NÃO ENCONTRADA, tenta religar automaticamente
-        // enquanto o usuário estiver nesta página (porque fetchStatus já roda a cada 3s).
         let _autoConnectRunning = false;
         let _lastAutoConnectAt = 0;
-        const AUTO_CONNECT_MIN_INTERVAL_MS = 15000; // 15s de intervalo mínimo entre tentativas
+        let _connectInFlight = false;
+        const AUTO_CONNECT_MIN_INTERVAL_MS = 15000;
 
-        async function autoConnectIfNeeded(status) {
-            const st = String(status || '').toUpperCase();
+        function normalizeStatus(status) {
+            const st = String(status || '').trim().toUpperCase();
+            if (st === 'OPEN') return 'CONNECTED';
+            if (st === 'CLOSE') return 'DISCONNECTED';
+            if (['ONLINE', 'READY', 'AUTHENTICATED'].includes(st)) return 'CONNECTED';
+            if (['OFFLINE', 'LOGGED_OUT'].includes(st)) return 'DISCONNECTED';
+            return st || 'DISCONNECTED';
+        }
+
+        async function autoConnectIfNeeded(status, hasQr) {
+            const st = normalizeStatus(status);
             const should = ['DISCONNECTED', 'NOT_FOUND', 'DELETED', 'DESATIVADO', 'INACTIVE', 'DISABLED'].includes(st);
 
-            if (!should) return;
+            if (!should || hasQr) return;
             const now = Date.now();
-            if (_autoConnectRunning) return;
+            if (_autoConnectRunning || _connectInFlight) return;
             if (now - _lastAutoConnectAt < AUTO_CONNECT_MIN_INTERVAL_MS) return;
 
             _autoConnectRunning = true;
@@ -760,7 +769,12 @@ print(response.json())</pre>
             try {
                 await fetch(urls.connect, {
                     method: 'POST',
-                    headers: { 'X-CSRFToken': csrfToken }
+                    cache: 'no-store',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ force_qr: false })
                 });
             } catch (e) {
                 console.error('Auto-connect falhou:', e);
@@ -768,7 +782,6 @@ print(response.json())</pre>
                 _autoConnectRunning = false;
             }
         }
-
 
         // --- UTILS COPY ---
         function copyToClip(id) {
@@ -787,7 +800,7 @@ print(response.json())</pre>
         }
 
         function copyToken() {
-            navigator.clipboard.writeText(document.getElementById('apiTokenField').value);
+            navigator.clipboard.writeText(document.getElementById('apiTokenField').value || '');
             showToast('Token copiado!');
         }
 
@@ -811,57 +824,101 @@ print(response.json())</pre>
             setInterval(fetchMessages, 3000);
         }
 
+        function setQrWaiting(message='Aguardando QR Code...') {
+            const qrImg = document.getElementById('qr-image');
+            const qrPh = document.getElementById('qr-placeholder');
+            qrImg.classList.add('d-none');
+            qrPh.classList.remove('d-none');
+            qrPh.innerHTML = `
+                <div class="spinner-border text-success mb-3"></div>
+                <p class="small mb-0">${message}</p>
+            `;
+        }
+
+        async function setQrFromText(qrText) {
+            if (!qrText || !window.QRCode) return false;
+            try {
+                const dataUrl = await QRCode.toDataURL(qrText, { width: 260, margin: 1 });
+                const qrImg = document.getElementById('qr-image');
+                const qrPh = document.getElementById('qr-placeholder');
+                qrImg.src = dataUrl + `#${Date.now()}`; // bust cache
+                qrImg.classList.remove('d-none');
+                qrPh.classList.add('d-none');
+                return true;
+            } catch (e) {
+                console.error('Falha ao renderizar QR via texto:', e);
+                return false;
+            }
+        }
+
+        function setQrFromDataUrl(dataUrl) {
+            const qrImg = document.getElementById('qr-image');
+            const qrPh = document.getElementById('qr-placeholder');
+            qrImg.src = (dataUrl || '') + `#${Date.now()}`; // bust cache
+            qrImg.classList.remove('d-none');
+            qrPh.classList.add('d-none');
+        }
+
         // Status Logic
         async function fetchStatus() {
             try {
-                const r = await fetch(urls.status);
+                const r = await fetch(urls.status, { cache: 'no-store' });
                 const d = await r.json();
                 
                 const badge = document.getElementById('status-badge');
-                const qrImg = document.getElementById('qr-image');
-                const qrPh = document.getElementById('qr-placeholder');
                 const btnC = document.getElementById('btn-connect');
                 const btnD = document.getElementById('btn-disconnect');
 
-                // Atualiza o campo do Authorization automaticamente quando o token chega
+                // Atualiza token na UI quando chegar
                 if (d && d.token) {
                     const authField = document.getElementById('authHeaderField');
+                    const apiTokenField = document.getElementById('apiTokenField');
                     if (authField) authField.value = `Bearer ${d.token}`;
+                    if (apiTokenField) apiTokenField.value = d.token;
                 }
 
+                const st = normalizeStatus(d.status);
+                const hasQrData = !!d.qrcode;
+                const qrText = d.qr_text || d.qr || null;
+                const hasAnyQr = hasQrData || !!qrText;
 
-
-                if(d.status === 'CONNECTED') {
-                    badge.className = 'badge bg-success px-3 py-2'; 
+                if (st === 'CONNECTED') {
+                    badge.className = 'badge bg-success px-3 py-2';
                     badge.innerText = 'Conectado';
-                    qrImg.classList.add('d-none'); 
+                    document.getElementById('qr-image').classList.add('d-none');
+                    const qrPh = document.getElementById('qr-placeholder');
                     qrPh.classList.remove('d-none');
                     qrPh.innerHTML = '<i class="fas fa-check-circle fa-3x text-success"></i><p class="mt-2 mb-0">Pronto para uso</p>';
-                    btnC.classList.add('d-none'); 
-                    btnD.classList.remove('d-none');
-                    if(d.phone) document.getElementById('connected-phone').innerText = d.phone;
-                } else if(d.qrcode) {
-                    badge.className = 'badge bg-warning text-dark px-3 py-2'; 
-                    badge.innerText = 'Leia o QR';
-                    qrImg.src = d.qrcode; 
-                    qrImg.classList.remove('d-none'); 
-                    qrPh.classList.add('d-none');
+
                     btnC.classList.add('d-none');
+                    btnD.classList.remove('d-none');
+                    if (d.phone) document.getElementById('connected-phone').innerText = d.phone;
+                } else if (hasQrData) {
+                    badge.className = 'badge bg-warning text-dark px-3 py-2';
+                    badge.innerText = 'Leia o QR';
+                    setQrFromDataUrl(d.qrcode);
+                    btnC.classList.add('d-none');
+                    btnD.classList.remove('d-none');
+                } else if (qrText) {
+                    badge.className = 'badge bg-warning text-dark px-3 py-2';
+                    badge.innerText = 'Leia o QR';
+                    const ok = await setQrFromText(qrText);
+                    if (!ok) {
+                        setQrWaiting('Gerando QR Code...');
+                    }
+                    btnC.classList.add('d-none');
+                    btnD.classList.remove('d-none');
                 } else {
-                    badge.className = 'badge bg-secondary px-3 py-2'; 
-                    badge.innerText = d.status || 'Desconectado';
-                    qrImg.classList.add('d-none'); 
-                    qrPh.classList.remove('d-none'); 
-                    qrPh.innerHTML = '<p class="mb-0">Aguardando conexão...</p>';
-                    btnC.classList.remove('d-none'); 
+                    badge.className = 'badge bg-secondary px-3 py-2';
+                    badge.innerText = st || 'Desconectado';
+                    setQrWaiting('Aguardando conexão...');
+                    btnC.classList.remove('d-none');
                     btnD.classList.add('d-none');
                 }
-            
 
-                // Se estiver desconectado/desativado e não houver QR ainda, tenta religar automaticamente
-                await autoConnectIfNeeded(d.status);
+                await autoConnectIfNeeded(st, hasAnyQr);
 
-} catch(e){
+            } catch (e) {
                 console.error(e);
             }
         }
@@ -871,7 +928,7 @@ print(response.json())</pre>
 
         async function fetchMessages(manual=false) {
             try {
-                const r = await fetch(urls.messages);
+                const r = await fetch(urls.messages, { cache: 'no-store' });
                 const msgs = await r.json();
                 
                 if(!msgs || msgs.length === 0) {
@@ -924,11 +981,56 @@ print(response.json())</pre>
 
         // --- AÇÕES DE CONEXÃO ---
         async function connectInstance() {
-            await fetch(urls.connect, {method:'POST', headers:{'X-CSRFToken':csrfToken}});
+            if (_connectInFlight) return;
+            _connectInFlight = true;
+
+            const btn = document.getElementById('btn-connect');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Iniciando...';
+
+            setQrWaiting('Iniciando sessão e solicitando QR...');
+
+            try {
+                await fetch(urls.connect, {
+                    method: 'POST',
+                    cache: 'no-store',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ force_qr: true })
+                });
+
+                // Aquecimento de status após clique
+                await fetchStatus();
+                setTimeout(fetchStatus, 1000);
+                setTimeout(fetchStatus, 2500);
+                setTimeout(fetchStatus, 5000);
+            } catch (e) {
+                console.error(e);
+                showToast('Erro ao iniciar sessão.', 'danger');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                _connectInFlight = false;
+            }
         }
+
         async function disconnectInstance() {
             if(confirm('Desconectar esta sessão?')) {
-                await fetch(urls.disconnect, {method:'POST', headers:{'X-CSRFToken':csrfToken}});
+                try {
+                    await fetch(urls.disconnect, {
+                        method:'POST',
+                        cache: 'no-store',
+                        headers:{'X-CSRFToken':csrfToken}
+                    });
+                    showToast('Sessão desconectada.');
+                    setTimeout(fetchStatus, 600);
+                } catch (e) {
+                    console.error(e);
+                    showToast('Erro ao desconectar.', 'danger');
+                }
             }
         }
 
@@ -953,7 +1055,7 @@ print(response.json())</pre>
                     body:JSON.stringify(data)
                 });
                 if(r.ok) { 
-                    showToast('Mensagem enviado com sucesso!'); 
+                    showToast('Mensagem enviada com sucesso!'); 
                     e.target.reset(); 
                     fetchMessages(true); 
                 } else {
@@ -1069,14 +1171,13 @@ print(response.json())</pre>
             let options = { method, headers };
 
             if (bodyRaw && !['GET', 'DELETE'].includes(method)) {
-                // Tenta ver se é JSON válido — se for, envia como JSON.
                 try {
                     JSON.parse(bodyRaw);
                     if (!headers['Content-Type']) {
                         headers['Content-Type'] = 'application/json';
                     }
                 } catch (err) {
-                    // Se não for JSON, deixa como texto cru. O usuário sabe o que está fazendo.
+                    // Se não for JSON, envia texto cru
                 }
                 options['body'] = bodyRaw;
             }

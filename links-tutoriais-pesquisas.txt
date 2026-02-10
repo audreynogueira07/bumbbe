@@ -1,0 +1,3 @@
+API usage - https://docs.google.com/document/d/1lvGD5tvltF3BEiObzfHj8aytvLiaTSl8ONG5M0Lu8MI/edit?tab=t.0
+api - https://docs.google.com/document/d/1mCJGMxpSbLQU5R6kDfxlaqQ3g8LBQ_HWSWwnbAsX-hA/edit?tab=t.0
+Too many requestes, resolver - https://chatgpt.com/c/694d61c6-5dc4-8327-9d69-e81c3821001c

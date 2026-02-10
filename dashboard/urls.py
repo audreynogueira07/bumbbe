@@ -22,8 +22,9 @@ from django.urls import path, include
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('',include('fillow.urls', namespace='fillow')),
-    path('chatbot/', include('chatbot.urls')), 
-    path('wpbot/', include('wpbot.urls')), 
-    path("flowbot/", include(("flowbot.urls", "flowbot"), namespace="flowbot")),
+#    path('chatbot/', include('chatbot.urls')), 
+#    path('wpbot/', include('wpbot.urls')), 
+#    path('adsmanager/', include('adsmanager.urls')), 
+#    path("flowbot/", include(("flowbot.urls", "flowbot"), namespace="flowbot")),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -60,6 +60,79 @@ class WordpressBot(models.Model):
     # Memória
     use_history = models.BooleanField(default=True, verbose_name="Usar Memória?")
     history_limit = models.IntegerField(default=10, verbose_name="Limite de Mensagens")
+    # -------------------------
+    # Widget / Sync (WordPress ↔ Django)
+    # -------------------------
+    prefer_server_settings = models.BooleanField(default=True)
+    # Últimas preferências recebidas do WordPress (sync).
+    wp_settings = models.JSONField(default=dict, blank=True)
+    # Preferências/overrides definidas no Django (têm prioridade).
+    django_settings = models.JSONField(default=dict, blank=True)
+    last_sync_at = models.DateTimeField(null=True, blank=True)
+    last_sync_site = models.URLField(blank=True, default="")
+
+    def get_effective_widget_settings(self) -> dict:
+        """
+        Retorna a configuração final do widget.
+        Regra: defaults < WordPress(sync) < Django(overrides).
+        """
+        defaults = {
+            # Layout
+            "position": "right",
+            "bottom_offset": 24,
+            "side_offset": 24,
+            "z_index": 99999,
+            "widget_width": 360,
+            "widget_height": 520,
+            "rounded": 18,
+            "shadow": True,
+
+            # Textos
+            "header_title": "Atendimento",
+            "header_subtitle": "Online agora",
+            "launcher_label": "Fale com a gente",
+            "placeholder": "Digite sua mensagem…",
+            "send_label": "Enviar",
+
+            # Marca
+            "avatar_url": "",
+            "brand_name": "",
+            "brand_site": "",
+
+            # Cores
+            "primary_color": "#0F172A",
+            "accent_color": "#22C55E",
+            "background_color": "#FFFFFF",
+            "bubble_color": "#0F172A",
+            "bubble_text_color": "#FFFFFF",
+
+            # Comportamento
+            "open_on_load": False,
+            "open_delay": 0,
+            "show_badge": True,
+            "sound": False,
+            "typing_indicator": True,
+            "greeting_enabled": True,
+            "greeting_text": "Olá! Como posso ajudar?",
+            "offline_text": "No momento estamos offline. Deixe sua mensagem.",
+
+            # Leads
+            "lead_capture": False,
+            "capture_name": True,
+            "capture_phone": False,
+            "capture_email": False,
+            "lead_required": False,
+            "lead_title": "Antes de começar",
+            "lead_note": "Preencha (opcional) para um atendimento mais rápido.",
+
+            # LGPD
+            "consent_required": False,
+            "consent_text": "Li e concordo com a Política de Privacidade.",
+            "privacy_url": "",
+        }
+        wp = self.wp_settings or {}
+        dj = self.django_settings or {}
+        return {**defaults, **wp, **dj}
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -115,6 +188,7 @@ class WordpressMessage(models.Model):
     sender = models.CharField(max_length=10, choices=SENDER_CHOICES)
     content = models.TextField()
     media_url = models.URLField(blank=True, null=True) # Se o bot enviou mídia
+    meta = models.JSONField(default=dict, blank=True)  # page_url/referrer/ip/user_agent etc.
     
     timestamp = models.DateTimeField(auto_now_add=True)
 
